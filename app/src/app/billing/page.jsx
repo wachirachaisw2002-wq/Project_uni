@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, Suspense } from "react"; // 1. เพิ่ม Suspense ตรงนี้
 import { useRouter, useSearchParams } from "next/navigation";
 import { AppSidebar } from "@/components/app-sidebar";
 import { SidebarProvider, SidebarInset, SidebarTrigger } from "@/components/ui/sidebar";
@@ -122,7 +122,8 @@ const createBill = async (billData) => {
   return res.json();
 };
 
-export default function BillingPage() {
+// 2. เปลี่ยนชื่อฟังก์ชันนี้ จาก export default function BillingPage() เป็น function BillingContent()
+function BillingContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
@@ -366,7 +367,7 @@ export default function BillingPage() {
                   </div>
                 </div>
                 <div className={`p-5 rounded-2xl flex flex-col items-center justify-center border-2 ${cashReceived === "" ? 'bg-zinc-50 border-transparent text-zinc-400 dark:bg-zinc-800 dark:text-zinc-500' :
-                    changeAmount >= 0 ? 'bg-green-50 border-green-100 text-green-700 dark:bg-green-900/20 dark:border-green-900/30 dark:text-green-400' : 'bg-red-50 border-red-100 text-red-600 dark:bg-red-900/20 dark:border-red-900/30 dark:text-red-400'
+                  changeAmount >= 0 ? 'bg-green-50 border-green-100 text-green-700 dark:bg-green-900/20 dark:border-green-900/30 dark:text-green-400' : 'bg-red-50 border-red-100 text-red-600 dark:bg-red-900/20 dark:border-red-900/30 dark:text-red-400'
                   }`}>
                   <span className="text-[10px] font-black uppercase tracking-widest mb-1">
                     {changeAmount >= 0 ? "เงินทอน (Change)" : "ยอดขาด (Remaining)"}
@@ -394,5 +395,14 @@ export default function BillingPage() {
         </Dialog>
       </SidebarInset>
     </SidebarProvider>
+  );
+}
+
+// 3. เพิ่มส่วนนี้สำหรับการ Export ออกไปใช้งานจริง (ตัวครอบ Suspense)
+export default function BillingPage() {
+  return (
+    <Suspense fallback={<div className="flex h-screen w-full items-center justify-center">Loading...</div>}>
+      <BillingContent />
+    </Suspense>
   );
 }
