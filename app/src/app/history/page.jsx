@@ -15,15 +15,17 @@ import {
   Search,
   Receipt,
   Pencil,
-  Save,   
+  Save,
   Plus,
   Minus,
   Trash2,
   ChevronLeft,
   ChevronRight,
   Hash,
-  User,      
-  AlertTriangle 
+  User,
+  AlertTriangle,
+  ShoppingBag,
+  MessageSquare // ✅ เพิ่มไอคอน MessageSquare
 } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -134,9 +136,11 @@ export default function Page() {
   const filteredOrders = useMemo(() => {
     return orders.filter((o) => {
       const searchStr = search.toLowerCase();
+      const customerName = (o.customer_name || "").toLowerCase();
       const matchText = (o.table_id?.toString() || "").includes(searchStr) ||
         (o.bill_id?.toString() || "").includes(searchStr) ||
-        (o.cashierName || "").toLowerCase().includes(searchStr); // ใช้ cashierName ที่ Map ไว้
+        (o.cashierName || "").toLowerCase().includes(searchStr) ||
+        customerName.includes(searchStr);
       const matchDate = !selectedDate || (o.created && o.created.toDateString() === selectedDate.toDateString());
       return matchText && matchDate;
     });
@@ -162,7 +166,7 @@ export default function Page() {
         >
           <div className="flex items-center gap-4">
             <SidebarTrigger />
-            <h1 className="text-lg font-bold tracking-tight text-zinc-900 dark:text-white">ประวัติยอดการสั่งอาหาร</h1>
+            <h1 className="text-sm font-bold text-zinc-900 dark:text-zinc-100">ประวัติยอดการสั่งอาหาร</h1>
           </div>
         </header>
 
@@ -171,7 +175,7 @@ export default function Page() {
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-500" />
               <Input
-                placeholder="ค้นหาเลขบิล, โต๊ะ, หรือชื่อพนักงาน..."
+                placeholder="ค้นหาเลขบิล, โต๊ะ, ชื่อพนักงาน หรือชื่อลูกค้า..."
                 value={search}
                 onChange={(e) => { setSearch(e.target.value); setPage(1); }}
                 className="pl-10 h-10 bg-zinc-50 border-zinc-200 dark:bg-zinc-900 dark:border-zinc-800 dark:text-zinc-100 rounded-xl focus-visible:ring-emerald-500"
@@ -197,7 +201,7 @@ export default function Page() {
                 <TableHeader className="bg-zinc-50/50 dark:bg-zinc-900/50">
                   <TableRow className="border-zinc-200 dark:border-zinc-800">
                     <TableHead className="w-[100px] py-4">เลขบิล</TableHead>
-                    <TableHead className="text-center">โต๊ะ</TableHead>
+                    <TableHead className="text-center">โต๊ะ / ประเภท</TableHead>
                     <TableHead>ยอดรวม</TableHead>
                     <TableHead>ชำระเงิน</TableHead>
                     <TableHead>พนักงาน</TableHead>
@@ -215,11 +219,26 @@ export default function Page() {
                       <TableCell className="font-mono text-sm">
                         <span className="text-zinc-400">#</span>{order.bill_id}
                       </TableCell>
+
                       <TableCell className="text-center">
-                        <span className="px-2 py-0.5 bg-zinc-100 dark:bg-zinc-800 rounded text-xs font-bold border dark:border-zinc-700">
-                          {order.table_id}
-                        </span>
+                        {order.table_id && Number(order.table_id) > 0 ? (
+                          <span className="px-2 py-0.5 bg-zinc-100 dark:bg-zinc-800 rounded text-xs font-bold border dark:border-zinc-700">
+                            {order.table_id}
+                          </span>
+                        ) : (
+                          <div className="flex flex-col items-center justify-center gap-1">
+                            <span className="px-2 py-0.5 bg-orange-50 text-orange-600 dark:bg-orange-900/20 dark:text-orange-400 rounded text-[10px] font-bold border border-orange-100 dark:border-orange-800 flex items-center gap-1">
+                              <ShoppingBag className="w-3 h-3" /> กลับบ้าน
+                            </span>
+                            {order.customer_name && (
+                              <span className="text-[10px] text-zinc-500 dark:text-zinc-400 max-w-[100px] truncate" title={order.customer_name}>
+                                {order.customer_name}
+                              </span>
+                            )}
+                          </div>
+                        )}
                       </TableCell>
+
                       <TableCell className="font-bold">
                         <div className={order.status === 'VOID' ? 'line-through opacity-30' : ''}>
                           {Number(order.total_price).toLocaleString()} ฿
@@ -270,8 +289,11 @@ export default function Page() {
                   <div className="p-2 bg-emerald-500/10 rounded-xl"><Receipt className="w-5 h-5 text-emerald-500" /></div>
                   <div>
                     <DialogTitle className="text-lg">รายละเอียดบิล #{selectedBillId}</DialogTitle>
-                    <DialogDescription className="text-xs flex items-center gap-1">
-                      <User className="w-3 h-3" /> ผู้เช็คบิล: {selectedBillData?.cashierName}
+                    <DialogDescription className="text-xs flex flex-col gap-1 mt-1">
+                      <span className="flex items-center gap-1"><User className="w-3 h-3" /> ผู้เช็คบิล: {selectedBillData?.cashierName}</span>
+                      {selectedBillData?.customer_name && (
+                        <span className="flex items-center gap-1 text-orange-500"><ShoppingBag className="w-3 h-3" /> ลูกค้า: {selectedBillData.customer_name}</span>
+                      )}
                     </DialogDescription>
                   </div>
                 </div>
@@ -284,20 +306,21 @@ export default function Page() {
                 <Table>
                   <TableHeader className="bg-zinc-50 dark:bg-zinc-900/50">
                     <TableRow className="border-zinc-100 dark:border-zinc-900">
+                      <TableHead className="text-xs h-9 w-[50px] text-center">โต๊ะ</TableHead>
                       <TableHead className="text-xs h-9">รายการเมนู</TableHead>
                       <TableHead className="text-center text-xs h-9">จำนวน</TableHead>
-                      <TableHead className="text-right text-xs h-9">ราคา</TableHead>
                       <TableHead className="text-right text-xs h-9">รวม</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {billItems.map((item, idx) => (
                       <TableRow key={idx} className="border-zinc-50 dark:border-zinc-900/30 hover:bg-transparent">
+                        <TableCell className="py-2.5 text-center text-xs text-zinc-400">
+                          {item.table_no || item.table_id || (Number(selectedBillData?.table_id) > 0 ? selectedBillData?.table_id : '-')}
+                        </TableCell>
                         <TableCell className="py-2.5 text-sm">{item.name_th || item.menu_name}</TableCell>
                         <TableCell className="py-2.5 text-center text-sm font-mono">x{item.qty || item.quantity}</TableCell>
-                        <TableCell className="py-2.5 text-right text-xs text-zinc-500">{Number(item.price).toLocaleString()}</TableCell>
                         <TableCell className="py-2.5 text-right text-sm font-bold">
-                          {/* แก้ไขการคำนวณ: ใช้ fallback ระหว่าง qty และ quantity เพื่อแก้ NaN */}
                           {((Number(item.qty) || Number(item.quantity) || 0) * Number(item.price)).toLocaleString()}
                         </TableCell>
                       </TableRow>
@@ -309,8 +332,24 @@ export default function Page() {
               <div className="p-4 bg-zinc-50 dark:bg-zinc-900/40 rounded-2xl border dark:border-zinc-800 space-y-2">
                 <div className="flex justify-between text-xs text-zinc-500">
                   <span>ช่องทาง: {selectedBillData?.payment_type}</span>
-                  <span>โต๊ะ: {selectedBillData?.table_id}</span>
+                  <span>
+                    {Number(selectedBillData?.table_id) > 0
+                      ? `โต๊ะ: ${selectedBillData?.table_id}`
+                      : <span className="flex items-center gap-1 text-orange-500 font-bold"><ShoppingBag className="w-3 h-3" /> กลับบ้าน</span>
+                    }
+                  </span>
                 </div>
+
+                {/* ✅ ส่วนแสดง Remark (ถ้ามี) */}
+                {selectedBillData?.remark && (
+                  <div className="bg-yellow-50 dark:bg-yellow-900/10 border border-yellow-100 dark:border-yellow-900/30 p-2.5 rounded-xl text-xs text-yellow-700 dark:text-yellow-500 flex gap-2 items-start">
+                    <MessageSquare className="w-4 h-4 shrink-0 mt-0.5" />
+                    <div>
+                      <span className="font-bold">หมายเหตุ:</span> {selectedBillData.remark}
+                    </div>
+                  </div>
+                )}
+
                 <div className="flex justify-between items-center pt-2">
                   <span className="font-bold">ยอดสุทธิรวม</span>
                   <span className={`text-xl font-black ${selectedBillData?.status === 'VOID' ? 'text-zinc-500 line-through' : 'text-emerald-500'}`}>
@@ -338,10 +377,11 @@ export default function Page() {
           </DialogContent>
         </Dialog>
 
+        {/* ... (Dialog แก้ไขบิล คงเดิม) ... */}
         <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
+          {/* โค้ดส่วน Edit Dialog เหมือนเดิมทุกประการ */}
           <DialogContent className="max-w-3xl bg-white dark:bg-black border-zinc-200 dark:border-zinc-800 p-0 overflow-hidden rounded-3xl shadow-2xl">
-
-
+            {/* ... เนื้อหาเหมือนเดิม ... */}
             <DialogHeader className="p-6 bg-zinc-50 dark:bg-zinc-950 border-b dark:border-zinc-900">
               <div className="flex items-center gap-3">
                 <div className="p-2.5 bg-blue-500/10 rounded-2xl">

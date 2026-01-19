@@ -1,10 +1,8 @@
 import { NextResponse } from "next/server";
-import pool from "@/lib/db"; // ตรวจสอบ path ของ db connection ให้ถูกต้อง
+import pool from "@/lib/db";
 
-// GET: ดึงข้อมูลเมนูทั้งหมด
 export async function GET() {
   try {
-    // [UPDATE] เพิ่ม type ใน SELECT
     const [rows] = await pool.query(
       "SELECT menu_id, name, price, category, image, type FROM menus ORDER BY category ASC, name ASC"
     );
@@ -15,11 +13,9 @@ export async function GET() {
   }
 }
 
-// POST: เพิ่มเมนูใหม่
 export async function POST(request) {
   try {
     const body = await request.json();
-    // [UPDATE] รับค่า type มาจาก frontend
     const { name, price, category, image, type } = body;
 
     if (!name || price === undefined || price === null || !category) {
@@ -29,10 +25,8 @@ export async function POST(request) {
       );
     }
 
-    // กำหนดค่า Default เป็น 'cooked' ถ้าไม่ได้ส่งมา
     const menuType = type || 'cooked';
 
-    // [UPDATE] เพิ่ม type ลงใน SQL INSERT
     const [result] = await pool.query(
       "INSERT INTO menus (name, price, category, image, type) VALUES (?, ?, ?, ?, ?)",
       [name, price, category, image || "", menuType]
@@ -55,12 +49,10 @@ export async function POST(request) {
   }
 }
 
-// PUT: แก้ไขเมนูเดิม
 export async function PUT(request) {
   try {
     const body = await request.json();
     const menu_id = body.menu_id ?? body.id;
-    // [UPDATE] รับค่า type
     const { name, price, category, image, type } = body;
 
     if (!menu_id || !name || price === undefined || price === null || !category) {
@@ -70,10 +62,8 @@ export async function PUT(request) {
       );
     }
 
-    // กำหนดค่า Default เป็น 'cooked' ป้องกันค่า null
     const menuType = type || 'cooked';
 
-    // [UPDATE] เพิ่ม type ลงใน SQL UPDATE
     const [result] = await pool.query(
       "UPDATE menus SET name=?, price=?, category=?, image=?, type=? WHERE menu_id=?",
       [name, price, category, image || "", menuType, menu_id]
@@ -98,7 +88,6 @@ export async function PUT(request) {
   }
 }
 
-// DELETE: ลบเมนู (ส่วนนี้เหมือนเดิม ไม่ต้องแก้ SQL)
 export async function DELETE(request) {
   try {
     const { searchParams } = new URL(request.url);

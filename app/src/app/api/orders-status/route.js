@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import pool from "@/lib/db";
 
+export const dynamic = "force-dynamic";
+
 export async function GET() {
   const connection = await pool.getConnection();
   try {
@@ -11,9 +13,11 @@ export async function GET() {
         o.total_price,
         o.created_at,
         o.paid,
+        o.order_type,
+        o.customer_name,
         t.number       AS table_display
       FROM orders o
-      JOIN tables t ON o.table_number = t.table_id
+      LEFT JOIN tables t ON o.table_number = t.table_id
       WHERE o.paid = 0
       ORDER BY o.created_at ASC
     `);
@@ -33,7 +37,7 @@ export async function GET() {
           m.name,
           m.price,
           m.category,
-          m.type -- [เพิ่มตรงนี้] เพื่อให้ Frontend รู้ว่าเป็น ready หรือ cooked
+          m.type
         FROM order_items oi
         JOIN menus m ON oi.menu_id = m.menu_id
         WHERE oi.order_id IN (?)
@@ -48,6 +52,8 @@ export async function GET() {
       id: o.id,
       table: o.table_display ?? o.table_number ?? "-",
       table_number: o.table_number,
+      orderType: o.order_type,       
+      customerName: o.customer_name, 
       total_price: o.total_price,
       paid: o.paid,
       created_at: o.created_at,
@@ -70,6 +76,16 @@ export async function PATCH(request) {
     if (!orderItemId) {
       return NextResponse.json({ error: "orderItemId required" }, { status: 400 });
     }
+
+    if (action === "cancel") {
+      await connection.query(
+        `UPDATE order_items SET status = 'ยกเลิก' WHERE order_item_id = ?`,
+        [orderItemId]
+      );
+      return NextResponse.json({ success: true });
+    }
+    // ---------------------------------------------
+
     if (action === "start") {
       await connection.query(
         `UPDATE order_items SET status = 'กำลังทำ' WHERE order_item_id = ?`,

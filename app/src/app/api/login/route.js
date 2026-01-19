@@ -5,7 +5,6 @@ export async function POST(req) {
   const { email, password } = await req.json();
 
   try {
-    // ✅ จุดที่แก้: เปลี่ยน name เป็น name_th as name
     const [rows] = await pool.query(
       "SELECT employee_id, name_th as name, password FROM employees WHERE email = ?",
       [email]
@@ -17,7 +16,6 @@ export async function POST(req) {
 
     const user = rows[0];
 
-    // (หมายเหตุ: ในอนาคตควรใช้ bcrypt.compare() แทนการเช็คสดแบบนี้นะครับ)
     if (password !== user.password) {
       return NextResponse.json({ message: "รหัสผ่านไม่ถูกต้อง" }, { status: 401 });
     }

@@ -1,10 +1,10 @@
-// app/orders-status-page-split/page.jsx (Pitch Black Mode)
+// app/orders-status-page-split/page.jsx (Final Version)
 "use client";
 
 import { useState, useEffect, useMemo, useRef } from "react";
 import { AppSidebar } from "@/components/app-sidebar";
 import { SidebarProvider, SidebarInset, SidebarTrigger } from "@/components/ui/sidebar";
-import { Card, CardHeader, CardContent, CardTitle, CardDescription } from "@/components/ui/card";
+import { Card, CardHeader, CardContent, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import {
@@ -18,10 +18,10 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Edit2, Trash2, ChefHat, UtensilsCrossed, ArrowLeft, Clock, CheckCircle2, BellRing, Package } from "lucide-react";
+import { Edit2, Trash2, ChefHat, UtensilsCrossed, ArrowLeft, Clock, CheckCircle2, BellRing, Package, ShoppingBag, User, XCircle } from "lucide-react";
 
 export default function OrdersStatusPageSplit() {
-  const [currentView, setCurrentView] = useState("home"); // "home" | "kitchen" | "server"
+  const [currentView, setCurrentView] = useState("home");
 
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -49,6 +49,8 @@ export default function OrdersStatusPageSplit() {
       ? data.orders.map((o) => ({
         id: o?.id ?? o?.order_id ?? "-",
         table: o?.table ?? o?.table_number ?? "-",
+        orderType: o?.orderType ?? "DINE_IN",
+        customerName: o?.customerName ?? "",
         items: Array.isArray(o?.items)
           ? o.items.map((i) => ({
             orderItemId:
@@ -192,28 +194,33 @@ export default function OrdersStatusPageSplit() {
     }
   };
 
+  // ✅ เปลี่ยนจาก Delete เป็น Cancel
   const handleDelete = async (orderItemId) => {
     if (!orderItemId) return;
-    if (!confirm("ยืนยันการลบรายการนี้?")) return;
+    if (!confirm("ยืนยันการยกเลิกรายการนี้?")) return;
     try {
+      // ใช้ PATCH action: 'cancel' แทน DELETE
       const res = await fetch("/api/orders-status", {
-        method: "DELETE",
+        method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ orderItemId }),
+        body: JSON.stringify({ orderItemId, action: "cancel" }),
       });
-      if (!res.ok) throw new Error("DELETE /api/orders-status failed");
+      if (!res.ok) throw new Error("Cancel failed");
 
+      // Optimistic Update
       setOrders((prev) =>
         prev.map((o) => ({
           ...o,
-          items: (o.items || []).filter((it) => it.orderItemId !== orderItemId),
+          items: (o.items || []).map((it) =>
+            it.orderItemId === orderItemId ? { ...it, status: "ยกเลิก" } : it
+          ),
         }))
       );
 
       fetchOnce();
     } catch (e) {
       console.error(e);
-      alert("ลบไม่สำเร็จ");
+      alert("ยกเลิกไม่สำเร็จ");
     }
   };
 
@@ -250,7 +257,7 @@ export default function OrdersStatusPageSplit() {
     if (s === "กำลังทำ") {
       return { label: "ทำเสร็จ", action: "complete", optimistic: "ทำเสร็จ", icon: <CheckCircle2 className="w-4 h-4 mr-1" /> };
     }
-    if (s === "ทำเสร็จ" || s === "เสิร์ฟแล้ว") return null;
+    if (s === "ทำเสร็จ" || s === "เสิร์ฟแล้ว" || s === "ยกเลิก") return null;
     return { label: "เริ่มทำ", action: "start", optimistic: "กำลังทำ", icon: <ChefHat className="w-4 h-4 mr-1" /> };
   };
 
@@ -266,6 +273,7 @@ export default function OrdersStatusPageSplit() {
   const kitchenQueue = useMemo(() => {
     const filt = (o) => {
       const items = (o.items || [])
+        // ✅ ปรับ Filter: แสดง 'ยกเลิก' ด้วย (เพื่อประวัติ)
         .filter((i) => i.status !== "เสิร์ฟแล้ว" && i.status !== "ทำเสร็จ")
         .filter((i) => i.type !== "ready")
         .filter((i) => kitchenCategory === "ทั้งหมด" || i.category === kitchenCategory);
@@ -293,6 +301,15 @@ export default function OrdersStatusPageSplit() {
     const s = (item.status || "").trim();
     const base = "inline-flex items-center rounded-md px-2 py-1 text-xs font-semibold ring-1 ring-inset";
 
+    // ✅ แสดงสถานะยกเลิก
+    if (s === "ยกเลิก") {
+      return (
+        <span className={`${base} bg-red-100 text-red-700 ring-red-600/20 dark:bg-red-900/30 dark:text-red-400 dark:ring-red-500/30 line-through decoration-red-700/50`}>
+          <XCircle className="w-3 h-3 mr-1" /> ยกเลิก
+        </span>
+      );
+    }
+
     if (item.type === "ready" && s !== "เสิร์ฟแล้ว") {
       return (
         <span className={`${base} bg-blue-50 text-blue-700 ring-blue-600/20 dark:bg-blue-900/30 dark:text-blue-400 dark:ring-blue-500/30`}>
@@ -302,31 +319,36 @@ export default function OrdersStatusPageSplit() {
     }
 
     switch (s) {
-      case "กำลังทำ":
-        return (
-          <span className={`${base} bg-amber-50 text-amber-700 ring-amber-600/20 dark:bg-amber-900/30 dark:text-amber-400 dark:ring-amber-500/30`}>
-            <Clock className="w-3 h-3 mr-1" /> กำลังทำ
-          </span>
-        );
-      case "ทำเสร็จ":
-        return (
-          <span className={`${base} bg-green-50 text-green-700 ring-green-600/20 dark:bg-green-900/30 dark:text-green-400 dark:ring-green-500/30`}>
-            <CheckCircle2 className="w-3 h-3 mr-1" /> พร้อมเสิร์ฟ
-          </span>
-        );
-      case "เสิร์ฟแล้ว":
-        return (
-          <span className={`${base} bg-gray-50 text-gray-600 ring-gray-500/10 dark:bg-zinc-800 dark:text-zinc-400 dark:ring-zinc-700`}>
-            เสิร์ฟแล้ว
-          </span>
-        );
-      default:
-        return (
-          <span className={`${base} bg-slate-50 text-slate-600 ring-slate-500/10 dark:bg-zinc-800 dark:text-zinc-400 dark:ring-zinc-700`}>
-            รอเริ่ม
-          </span>
-        );
+      case "กำลังทำ": return <span className={`${base} bg-amber-50 text-amber-700 ring-amber-600/20 dark:bg-amber-900/30 dark:text-amber-400 dark:ring-amber-500/30`}><Clock className="w-3 h-3 mr-1" /> กำลังทำ</span>;
+      case "ทำเสร็จ": return <span className={`${base} bg-green-50 text-green-700 ring-green-600/20 dark:bg-green-900/30 dark:text-green-400 dark:ring-green-500/30`}><CheckCircle2 className="w-3 h-3 mr-1" /> พร้อมเสิร์ฟ</span>;
+      case "เสิร์ฟแล้ว": return <span className={`${base} bg-gray-50 text-gray-600 ring-gray-500/10 dark:bg-zinc-800 dark:text-zinc-400 dark:ring-zinc-700`}>เสิร์ฟแล้ว</span>;
+      default: return <span className={`${base} bg-slate-50 text-slate-600 ring-slate-500/10 dark:bg-zinc-800 dark:text-zinc-400 dark:ring-zinc-700`}>รอเริ่ม</span>;
     }
+  };
+
+  const OrderSourceBadge = ({ order }) => {
+    const isTakeaway = order.orderType === 'TAKEAWAY';
+    if (isTakeaway) {
+      return (
+        <div className="flex flex-col items-center justify-center">
+          <div className="inline-flex items-center justify-center w-10 h-10 rounded-full bg-purple-100 font-bold text-purple-800 dark:bg-purple-900/50 dark:text-purple-300 mb-1">
+            <ShoppingBag className="w-5 h-5" />
+          </div>
+          <div className="flex items-center gap-1 text-xs font-medium text-purple-600 dark:text-purple-400">
+            <User className="w-3 h-3" />
+            <span className="truncate max-w-[80px]" title={order.customerName}>{order.customerName}</span>
+          </div>
+        </div>
+      );
+    }
+    return (
+      <div className="flex flex-col items-center justify-center">
+        <div className="inline-flex items-center justify-center w-10 h-10 rounded-full bg-gray-100 font-bold text-lg text-gray-800 dark:bg-zinc-800 dark:text-white mb-1">
+          {order.table}
+        </div>
+        <span className="text-xs text-gray-500 dark:text-zinc-500 font-medium">ทานที่ร้าน</span>
+      </div>
+    );
   };
 
   return (
@@ -334,12 +356,12 @@ export default function OrdersStatusPageSplit() {
       <AppSidebar />
       <SidebarInset className="dark:bg-black">
         <header className="sticky top-0 z-10 flex h-16 items-center justify-between px-6 border-b 
-                         bg-white/95 backdrop-blur shadow-sm 
-                         dark:bg-black/95 dark:border-zinc-800 dark:shadow-none">
+                          bg-white/95 backdrop-blur shadow-sm 
+                          dark:bg-black/95 dark:border-zinc-800 dark:shadow-none">
           <div className="flex items-center gap-4">
             <SidebarTrigger />
             <div>
-              <h1 className="text-xl font-bold text-gray-800 dark:text-white">
+              <h1 className="text-sm font-bold text-zinc-900 dark:text-zinc-100">
                 {currentView === "home" && "เลือกหน้าที่ต้องการ"}
                 {currentView === "kitchen" && "ระบบครัว"}
                 {currentView === "server" && "ระบบเสิร์ฟ"}
@@ -384,7 +406,7 @@ export default function OrdersStatusPageSplit() {
                         ? 'bg-orange-100 text-orange-700 dark:bg-orange-900/40 dark:text-orange-400'
                         : 'bg-gray-100 text-gray-500 dark:bg-zinc-800 dark:text-zinc-500'
                         }`}>
-                        {kitchenQueue.length > 0 ? `รอทำ ${kitchenQueue.length} โต๊ะ` : 'ไม่มีรายการค้าง'}
+                        {kitchenQueue.length > 0 ? `รอทำ ${kitchenQueue.length} ออเดอร์` : 'ไม่มีรายการค้าง'}
                       </span>
                     </div>
                   </Card>
@@ -404,7 +426,7 @@ export default function OrdersStatusPageSplit() {
                         ? 'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-400'
                         : 'bg-gray-100 text-gray-500 dark:bg-zinc-800 dark:text-zinc-500'
                         }`}>
-                        {readyToServe.length > 0 ? `พร้อมเสิร์ฟ ${readyToServe.length} โต๊ะ` : 'ไม่มีรายการรอเสิร์ฟ'}
+                        {readyToServe.length > 0 ? `พร้อมเสิร์ฟ ${readyToServe.length} ออเดอร์` : 'ไม่มีรายการรอเสิร์ฟ'}
                       </span>
                     </div>
                   </Card>
@@ -447,7 +469,7 @@ export default function OrdersStatusPageSplit() {
                         <Table>
                           <TableHeader className="bg-gray-50/50 dark:bg-zinc-900/30">
                             <TableRow className="dark:border-zinc-800">
-                              <TableHead className="w-[100px] text-center font-bold text-gray-700 dark:text-zinc-300">โต๊ะ</TableHead>
+                              <TableHead className="w-[120px] text-center font-bold text-gray-700 dark:text-zinc-300">ที่มา</TableHead>
                               <TableHead className="font-bold text-gray-700 dark:text-zinc-300">รายการ</TableHead>
                               <TableHead className="font-bold text-gray-700 dark:text-zinc-300">ประเภท</TableHead>
                               <TableHead className="w-[100px] text-center font-bold text-gray-700 dark:text-zinc-300">จำนวน</TableHead>
@@ -461,21 +483,36 @@ export default function OrdersStatusPageSplit() {
                               order.items.map((item) => {
                                 const toggle = getKitchenToggle(item.status);
                                 const isProcessing = item.status === "กำลังทำ";
+                                // ✅ ตรวจสอบสถานะยกเลิก
+                                const isCancelled = item.status === "ยกเลิก";
+
                                 return (
-                                  <TableRow key={`k-${item.orderItemId}`} className="hover:bg-gray-50/50 dark:hover:bg-zinc-900/30 dark:border-zinc-800">
-                                    <TableCell className="text-center">
-                                      <div className="inline-flex items-center justify-center w-10 h-10 rounded-full bg-gray-100 font-bold text-lg text-gray-800 dark:bg-zinc-800 dark:text-white">
-                                        {order.table}
-                                      </div>
+                                  <TableRow key={`k-${item.orderItemId}`}
+                                    className={`hover:bg-gray-50/50 dark:hover:bg-zinc-900/30 dark:border-zinc-800 transition-opacity duration-300
+                                      ${isCancelled ? "opacity-40 bg-gray-50 dark:bg-zinc-900/50 select-none" : ""}`}
+                                  >
+                                    <TableCell className="text-center align-top pt-4">
+                                      <OrderSourceBadge order={order} />
                                     </TableCell>
-                                    <TableCell className="font-medium text-gray-900 text-base dark:text-zinc-100">{item.name}</TableCell>
-                                    <TableCell className="text-gray-500 dark:text-zinc-400">{item.category}</TableCell>
-                                    <TableCell className="text-center font-bold text-lg dark:text-white">{item.qty}</TableCell>
-                                    <TableCell className="text-red-500 font-medium dark:text-red-400">{item.note || "-"}</TableCell>
+
+                                    {/* ✅ เพิ่ม line-through ถ้าถูกยกเลิก */}
+                                    <TableCell className={`font-medium text-gray-900 text-base dark:text-zinc-100 ${isCancelled ? "line-through decoration-gray-400" : ""}`}>
+                                      {item.name}
+                                    </TableCell>
+                                    <TableCell className={`text-gray-500 dark:text-zinc-400 ${isCancelled ? "line-through" : ""}`}>
+                                      {item.category}
+                                    </TableCell>
+                                    <TableCell className={`text-center font-bold text-lg dark:text-white ${isCancelled ? "line-through" : ""}`}>
+                                      {item.qty}
+                                    </TableCell>
+                                    <TableCell className={`text-red-500 font-medium dark:text-red-400 ${isCancelled ? "line-through" : ""}`}>
+                                      {item.note || "-"}
+                                    </TableCell>
                                     <TableCell>{statusChip(item)}</TableCell>
                                     <TableCell>
                                       <div className="flex justify-end gap-2 items-center">
-                                        {toggle && (
+                                        {/* ซ่อนปุ่มถ้าถูกยกเลิก */}
+                                        {!isCancelled && toggle && (
                                           <Button
                                             size="sm"
                                             variant={toggle.action === "start" ? "outline" : "default"}
@@ -488,54 +525,58 @@ export default function OrdersStatusPageSplit() {
                                             {toggle.icon} {toggle.label}
                                           </Button>
                                         )}
-                                        <Dialog
-                                          open={editData.orderItemId === item.orderItemId}
-                                          onOpenChange={(open) => {
-                                            isEditingRef.current = open;
-                                            if (!open) setEditData({ orderItemId: null, qty: 1, note: "" });
-                                          }}
-                                        >
-                                          <DialogTrigger asChild>
-                                            <Button size="icon" variant="ghost" disabled={isProcessing}
-                                              className="h-8 w-8 text-gray-400 hover:text-blue-600 dark:text-zinc-500 dark:hover:text-blue-400 dark:hover:bg-zinc-900"
-                                              onClick={() => setEditData({ orderItemId: item.orderItemId, qty: item.qty, note: item.note ?? "" })}
+                                        {!isCancelled && (
+                                          <>
+                                            <Dialog
+                                              open={editData.orderItemId === item.orderItemId}
+                                              onOpenChange={(open) => {
+                                                isEditingRef.current = open;
+                                                if (!open) setEditData({ orderItemId: null, qty: 1, note: "" });
+                                              }}
                                             >
-                                              <Edit2 size={14} />
+                                              <DialogTrigger asChild>
+                                                <Button size="icon" variant="ghost" disabled={isProcessing}
+                                                  className="h-8 w-8 text-gray-400 hover:text-blue-600 dark:text-zinc-500 dark:hover:text-blue-400 dark:hover:bg-zinc-900"
+                                                  onClick={() => setEditData({ orderItemId: item.orderItemId, qty: item.qty, note: item.note ?? "" })}
+                                                >
+                                                  <Edit2 size={14} />
+                                                </Button>
+                                              </DialogTrigger>
+                                              <DialogContent className="sm:max-w-md dark:bg-zinc-950 dark:border-zinc-800">
+                                                <DialogHeader><DialogTitle className="dark:text-white">แก้ไขรายการ: {item.name}</DialogTitle></DialogHeader>
+                                                <div className="grid gap-4 py-4">
+                                                  <div className="space-y-2">
+                                                    <Label className="dark:text-zinc-300">จำนวน</Label>
+                                                    <Input type="number" min={1} value={editData.qty}
+                                                      onChange={(e) => setEditData(prev => ({ ...prev, qty: Math.max(1, parseInt(e.target.value, 10) || 1) }))}
+                                                      className="bg-gray-50 dark:bg-zinc-900 dark:border-zinc-800 dark:text-white"
+                                                    />
+                                                  </div>
+                                                  <div className="space-y-2">
+                                                    <Label className="dark:text-zinc-300">รายละเอียดเพิ่มเติม</Label>
+                                                    <Input value={editData.note}
+                                                      onChange={(e) => setEditData(prev => ({ ...prev, note: e.target.value }))}
+                                                      className="bg-gray-50 dark:bg-zinc-900 dark:border-zinc-800 dark:text-white"
+                                                      placeholder="เช่น ไม่ใส่ผัก"
+                                                    />
+                                                  </div>
+                                                </div>
+                                                <DialogFooter>
+                                                  <Button variant="outline" onClick={() => setEditData({ orderItemId: null, qty: 1, note: "" })} className="dark:border-zinc-800 dark:text-zinc-400">ยกเลิก</Button>
+                                                  <Button disabled={saving} onClick={handleEditSave} className="bg-emerald-600 hover:bg-emerald-700">
+                                                    {saving ? "กำลังบันทึก..." : "บันทึก"}
+                                                  </Button>
+                                                </DialogFooter>
+                                              </DialogContent>
+                                            </Dialog>
+                                            <Button size="icon" variant="ghost" disabled={isProcessing}
+                                              className="h-8 w-8 text-gray-400 hover:text-red-600 dark:text-zinc-500 dark:hover:text-red-400 dark:hover:bg-zinc-900"
+                                              onClick={() => handleDelete(item.orderItemId)}
+                                            >
+                                              <Trash2 size={14} />
                                             </Button>
-                                          </DialogTrigger>
-                                          <DialogContent className="sm:max-w-md dark:bg-zinc-950 dark:border-zinc-800">
-                                            <DialogHeader><DialogTitle className="dark:text-white">แก้ไขรายการ: {item.name}</DialogTitle></DialogHeader>
-                                            <div className="grid gap-4 py-4">
-                                              <div className="space-y-2">
-                                                <Label className="dark:text-zinc-300">จำนวน</Label>
-                                                <Input type="number" min={1} value={editData.qty}
-                                                  onChange={(e) => setEditData(prev => ({ ...prev, qty: Math.max(1, parseInt(e.target.value, 10) || 1) }))}
-                                                  className="bg-gray-50 dark:bg-zinc-900 dark:border-zinc-800 dark:text-white"
-                                                />
-                                              </div>
-                                              <div className="space-y-2">
-                                                <Label className="dark:text-zinc-300">รายละเอียดเพิ่มเติม</Label>
-                                                <Input value={editData.note}
-                                                  onChange={(e) => setEditData(prev => ({ ...prev, note: e.target.value }))}
-                                                  className="bg-gray-50 dark:bg-zinc-900 dark:border-zinc-800 dark:text-white"
-                                                  placeholder="เช่น ไม่ใส่ผัก"
-                                                />
-                                              </div>
-                                            </div>
-                                            <DialogFooter>
-                                              <Button variant="outline" onClick={() => setEditData({ orderItemId: null, qty: 1, note: "" })} className="dark:border-zinc-800 dark:text-zinc-400">ยกเลิก</Button>
-                                              <Button disabled={saving} onClick={handleEditSave} className="bg-emerald-600 hover:bg-emerald-700">
-                                                {saving ? "กำลังบันทึก..." : "บันทึก"}
-                                              </Button>
-                                            </DialogFooter>
-                                          </DialogContent>
-                                        </Dialog>
-                                        <Button size="icon" variant="ghost" disabled={isProcessing}
-                                          className="h-8 w-8 text-gray-400 hover:text-red-600 dark:text-zinc-500 dark:hover:text-red-400 dark:hover:bg-zinc-900"
-                                          onClick={() => handleDelete(item.orderItemId)}
-                                        >
-                                          <Trash2 size={14} />
-                                        </Button>
+                                          </>
+                                        )}
                                       </div>
                                     </TableCell>
                                   </TableRow>
@@ -586,7 +627,7 @@ export default function OrdersStatusPageSplit() {
                           <Table>
                             <TableHeader className="bg-gray-50/50 dark:bg-zinc-900/30">
                               <TableRow className="dark:border-zinc-800">
-                                <TableHead className="w-[100px] text-center font-bold text-gray-700 dark:text-zinc-300">โต๊ะ</TableHead>
+                                <TableHead className="w-[120px] text-center font-bold text-gray-700 dark:text-zinc-300">ที่มา</TableHead>
                                 <TableHead className="font-bold text-gray-700 dark:text-zinc-300">รายการ</TableHead>
                                 <TableHead className="font-bold text-gray-700 dark:text-zinc-300">ประเภท</TableHead>
                                 <TableHead className="w-[100px] text-center font-bold text-gray-700 dark:text-zinc-300">จำนวน</TableHead>
@@ -599,10 +640,8 @@ export default function OrdersStatusPageSplit() {
                               {readyToServe.flatMap((order) =>
                                 order.items.map((item) => (
                                   <TableRow key={`s-${item.orderItemId}`} className="hover:bg-gray-50/50 dark:hover:bg-zinc-900/30 dark:border-zinc-800">
-                                    <TableCell className="text-center">
-                                      <div className="inline-flex items-center justify-center w-10 h-10 rounded-full bg-blue-100 font-bold text-lg text-blue-800 dark:bg-blue-900/50 dark:text-blue-300">
-                                        {order.table}
-                                      </div>
+                                    <TableCell className="text-center align-top pt-4">
+                                      <OrderSourceBadge order={order} />
                                     </TableCell>
                                     <TableCell className="font-medium text-gray-900 text-base dark:text-zinc-100">{item.name}</TableCell>
                                     <TableCell className="text-gray-500 dark:text-zinc-400">{item.category}</TableCell>
@@ -610,11 +649,19 @@ export default function OrdersStatusPageSplit() {
                                     <TableCell className="text-red-500 dark:text-red-400">{item.note || "-"}</TableCell>
                                     <TableCell className="text-right">{statusChip(item)}</TableCell>
                                     <TableCell>
-                                      <div className="flex justify-end gap-2">
+                                      <div className="flex justify-end gap-2 items-center">
                                         <Button size="sm" className="bg-blue-600 hover:bg-blue-700 text-white shadow-sm h-8 dark:bg-blue-700 dark:hover:bg-blue-600"
                                           onClick={() => handleAction(item.orderItemId, "serve", "เสิร์ฟแล้ว")}
                                         >
                                           <BellRing className="w-4 h-4 mr-1" /> เสิร์ฟแล้ว
+                                        </Button>
+
+                                        {/* --- เพิ่มปุ่มลบให้ Server ด้วย --- */}
+                                        <Button size="icon" variant="ghost"
+                                          className="h-8 w-8 text-gray-400 hover:text-red-600 dark:text-zinc-500 dark:hover:text-red-400 dark:hover:bg-zinc-900"
+                                          onClick={() => handleDelete(item.orderItemId)}
+                                        >
+                                          <Trash2 size={14} />
                                         </Button>
                                       </div>
                                     </TableCell>
@@ -640,10 +687,10 @@ export default function OrdersStatusPageSplit() {
                           <Table>
                             <TableHeader className="bg-gray-50 dark:bg-zinc-900/50">
                               <TableRow className="dark:border-zinc-800">
-                                <TableHead className="dark:text-zinc-400">โต๊ะ</TableHead>
+                                <TableHead className="dark:text-zinc-400 text-center w-[120px]">ที่มา</TableHead>
                                 <TableHead className="dark:text-zinc-400">รายการ</TableHead>
                                 <TableHead className="dark:text-zinc-400">ประเภท</TableHead>
-                                <TableHead className="dark:text-zinc-400">จำนวน</TableHead>
+                                <TableHead className="dark:text-zinc-400 text-center">จำนวน</TableHead>
                                 <TableHead className="dark:text-zinc-400">หมายเหตุ</TableHead>
                               </TableRow>
                             </TableHeader>
@@ -652,10 +699,19 @@ export default function OrdersStatusPageSplit() {
                                 const order = orders.find((o) => (o.items || []).some((i) => i.orderItemId === item.orderItemId));
                                 return (
                                   <TableRow key={`served-${item.orderItemId}`} className="opacity-60 bg-white hover:bg-gray-50 dark:bg-zinc-950 dark:hover:bg-zinc-900/30 dark:border-zinc-800">
-                                    <TableCell className="dark:text-zinc-500">{order?.table ?? "-"}</TableCell>
+                                    <TableCell className="dark:text-zinc-500 text-center align-middle">
+                                      {order?.orderType === 'TAKEAWAY' ? (
+                                        <div className="flex flex-col items-center">
+                                          <span className="text-xs font-bold text-purple-600 dark:text-purple-400">Takeaway</span>
+                                          <span className="text-[10px] truncate max-w-[80px]">{order.customerName}</span>
+                                        </div>
+                                      ) : (
+                                        <span className="font-bold text-gray-700 dark:text-zinc-400">โต๊ะ {order?.table ?? "-"}</span>
+                                      )}
+                                    </TableCell>
                                     <TableCell className="dark:text-zinc-500">{item.name}</TableCell>
                                     <TableCell className="dark:text-zinc-500">{item.category}</TableCell>
-                                    <TableCell className="dark:text-zinc-500">{item.qty}</TableCell>
+                                    <TableCell className="dark:text-zinc-500 text-center">{item.qty}</TableCell>
                                     <TableCell className="dark:text-zinc-500">{item.note}</TableCell>
                                   </TableRow>
                                 );

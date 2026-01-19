@@ -1,6 +1,7 @@
+// app/billing/page.jsx
 "use client";
 
-import { useEffect, useMemo, useState, Suspense } from "react"; // 1. เพิ่ม Suspense ตรงนี้
+import { useEffect, useMemo, useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { AppSidebar } from "@/components/app-sidebar";
 import { SidebarProvider, SidebarInset, SidebarTrigger } from "@/components/ui/sidebar";
@@ -22,18 +23,25 @@ import {
   Plus,
   Save,
   Link as LinkIcon,
-  CheckCircle2
+  CheckCircle2,
+  User,
+  XCircle
+  // ❌ ลบ MessageSquare ออก
 } from "lucide-react";
 
-const adjustOrderQty = async (tableId, menuId, adjustQty) => {
+// --- API Functions ---
+const adjustOrderQty = async (tableId, menuId, adjustQty, orderId = null) => {
+  const body = {
+    menu_id: menuId,
+    adjust_qty: adjustQty
+  };
+  if (tableId) body.table_number = tableId;
+  if (orderId) body.order_id = orderId;
+
   const res = await fetch("/api/orders/adjust", {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      table_number: tableId,
-      menu_id: menuId,
-      adjust_qty: adjustQty
-    }),
+    body: JSON.stringify(body),
   });
   if (!res.ok) throw new Error("Failed to adjust order");
   return res.json();
@@ -47,31 +55,39 @@ const fetchTableInfo = async (tableId) => {
   } catch (e) { return null; }
 };
 
-const fetchOrdersByTable = async (tableId) => {
-  const res = await fetch(`/api/orders?table=${tableId}`, { cache: "no-store" });
-  if (!res.ok) return { summary: [], unservedDetails: [] };
+const fetchOrders = async (tableId, type, customerName) => {
+  let url = `/api/orders?`;
+  if (type === 'takeout') {
+    url += `type=takeout&customerName=${encodeURIComponent(customerName)}`;
+  } else {
+    url += `table=${tableId}`;
+  }
+
+  const res = await fetch(url, { cache: "no-store" });
+  if (!res.ok) return { summary: [], unservedDetails: [], rawOrders: [] };
 
   const orders = await res.json();
   const summary = {};
   const unservedDetails = [];
 
   for (const order of orders || []) {
-    const currentTableNum = order.table_number;
+    const currentTableNum = order.table_number || 'Takeaway';
     for (const item of order.items || []) {
       const st = item.status ? String(item.status).trim() : 'ไม่มีสถานะ';
       if (item.bill_id) continue;
       if (Number(item.qty || 0) <= 0) continue;
-      if (st === 'ยกเลิก' || st === 'cancelled') continue;
 
-      const isReadyToPay = st === 'เสิร์ฟแล้ว';
-      if (!isReadyToPay) {
+      const isCancelled = st === 'ยกเลิก' || st === 'cancelled';
+      const isReadyToPay = st === 'เสิร์ฟแล้ว' || st === 'เสร็จสิ้น';
+
+      if (!isReadyToPay && !isCancelled) {
         unservedDetails.push({ name: item.name, status: st, table: currentTableNum });
       }
 
-      const key = item.menu_id;
+      const key = isCancelled ? `${item.menu_id}_cancelled` : item.menu_id;
       const price = Number(item.price || 0);
       const qty = Number(item.qty || 0);
-      const lineTotal = price * qty;
+      const lineTotal = isCancelled ? 0 : (price * qty);
 
       if (summary[key]) {
         summary[key].qty += qty;
@@ -85,12 +101,14 @@ const fetchOrdersByTable = async (tableId) => {
           qty: qty,
           price: price,
           total: lineTotal,
-          tables: { [currentTableNum]: qty }
+          tables: { [currentTableNum]: qty },
+          order_id: order.id,
+          isCancelled: isCancelled
         };
       }
     }
   }
-  return { summary: Object.values(summary), unservedDetails };
+  return { summary: Object.values(summary), unservedDetails, rawOrders: orders };
 };
 
 const updateTable = async (id, action, status = null, paymentType = null) => {
@@ -105,7 +123,13 @@ const updateTable = async (id, action, status = null, paymentType = null) => {
 
 const createBill = async (billData) => {
   const formData = new FormData();
-  formData.append("table_id", billData.tableId);
+  if (billData.tableId) formData.append("table_id", billData.tableId);
+  if (billData.orderType) formData.append("order_type", billData.orderType);
+  if (billData.customerName) formData.append("customer_name", billData.customerName);
+
+  // ❌ ลบการส่ง remark ออก เพราะจะใช้ Auto Remark ที่ Backend แทน
+  // if (billData.remark) formData.append("remark", billData.remark);
+
   formData.append("items", JSON.stringify(billData.items));
   formData.append("total_price", billData.totalPrice);
   formData.append("payment_type", billData.paymentType);
@@ -122,18 +146,21 @@ const createBill = async (billData) => {
   return res.json();
 };
 
-// 2. เปลี่ยนชื่อฟังก์ชันนี้ จาก export default function BillingPage() เป็น function BillingContent()
 function BillingContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
-  const tableParam = useMemo(() => searchParams.get("table") ?? searchParams.get("table_id"), [searchParams]);
+  const tableParam = searchParams.get("table") ?? searchParams.get("table_id");
+  const type = searchParams.get("type");
+  const customerName = searchParams.get("customerName");
+
   const tableId = useMemo(() => {
     const n = Number(tableParam);
     return Number.isFinite(n) && n > 0 ? n : null;
   }, [tableParam]);
 
   const [orders, setOrders] = useState([]);
+  const [rawOrders, setRawOrders] = useState([]);
   const [totalPrice, setTotalPrice] = useState(0);
   const [paymentDialogOpen, setPaymentDialogOpen] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -148,29 +175,40 @@ function BillingContent() {
   const [cashReceived, setCashReceived] = useState("");
   const [changeAmount, setChangeAmount] = useState(0);
 
+  // ❌ ลบ State remark ออก
+  // const [remark, setRemark] = useState("");
+
   useEffect(() => {
-    if (!tableId) { router.replace("/table"); }
-  }, [tableId, router]);
+    if (!tableId && type !== 'takeout') {
+      router.replace("/table-status-dashboard");
+    }
+  }, [tableId, type, router]);
 
   const loadOrders = async () => {
-    if (!tableId) return;
+    if (!tableId && type !== 'takeout') return;
     setLoading(true);
     try {
-      const info = await fetchTableInfo(tableId);
-      setTableInfo(info);
-      const { summary, unservedDetails } = await fetchOrdersByTable(tableId);
+      if (tableId) {
+        const info = await fetchTableInfo(tableId);
+        setTableInfo(info);
+      }
+
+      const { summary, unservedDetails, rawOrders: raw } = await fetchOrders(tableId, type, customerName);
       setOrders(summary);
       setUnservedItems(unservedDetails);
+      setRawOrders(raw);
       setTotalPrice(summary.reduce((sum, item) => sum + Number(item.total || 0), 0));
 
-      const tableSet = new Set();
-      summary.forEach(item => { if (item.tables) Object.keys(item.tables).forEach(t => tableSet.add(String(t))); });
-      const others = Array.from(tableSet).filter(t => t !== String(tableId)).sort((a, b) => Number(a) - Number(b));
-      setRelatedTables(others);
+      if (tableId) {
+        const tableSet = new Set();
+        summary.forEach(item => { if (item.tables) Object.keys(item.tables).forEach(t => tableSet.add(String(t))); });
+        const others = Array.from(tableSet).filter(t => t !== String(tableId) && t !== 'Takeaway').sort((a, b) => Number(a) - Number(b));
+        setRelatedTables(others);
+      }
     } catch (error) { console.error(error); } finally { setLoading(false); }
   };
 
-  useEffect(() => { loadOrders(); }, [tableId]);
+  useEffect(() => { loadOrders(); }, [tableId, type, customerName]);
 
   useEffect(() => {
     const fetchMe = async () => {
@@ -191,38 +229,73 @@ function BillingContent() {
   }, [cashReceived, totalPrice]);
 
   const handleAdjustQtyAction = async (item, amount) => {
+    if (item.isCancelled) return;
     if (adjustingId) return;
-    if (amount < 0 && item.qty <= 1) { if (!confirm(`ลบรายการ "${item.name}"?`)) return; }
+
+    if (amount < 0 && item.qty <= 1) {
+      if (!confirm(`ต้องการ "ยกเลิก" รายการ "${item.name}" ใช่หรือไม่?`)) return;
+    }
+
     setAdjustingId(item.menu_id);
     try {
-      await adjustOrderQty(tableId, item.menu_id, amount);
+      let targetOrderId = null;
+      if (type === 'takeout' && rawOrders.length > 0) {
+        targetOrderId = rawOrders[0].id;
+      }
+
+      if (!tableId && !targetOrderId) throw new Error("ไม่พบข้อมูลออเดอร์ กรุณารีเฟรช");
+
+      await adjustOrderQty(tableId, item.menu_id, amount, targetOrderId);
       await loadOrders();
-    } catch (e) { alert("ล้มเหลว"); } finally { setAdjustingId(null); }
+    } catch (e) {
+      alert("ล้มเหลว: " + e.message);
+    } finally {
+      setAdjustingId(null);
+    }
   };
 
   const onConfirmPaymentCash = async () => {
     setLoading(true);
     try {
       await createBill({
-        tableId, items: orders, totalPrice, paymentType: "เงินสด",
-        closedById: currentEmployee?.id, closedByName: currentEmployee?.name,
+        tableId,
+        orderType: type === 'takeout' ? 'TAKEAWAY' : 'DINE_IN',
+        customerName: customerName,
+        items: orders,
+        totalPrice,
+        paymentType: "เงินสด",
+        closedById: currentEmployee?.id,
+        closedByName: currentEmployee?.name,
         cashReceived: parseFloat(cashReceived),
-        changeAmount: changeAmount
+        changeAmount: changeAmount,
+        // remark: remark  // ❌ ไม่ต้องส่ง remark
       });
-      await updateTable(tableId, "changeStatus", "ว่าง", "เงินสด");
-      if (relatedTables.length > 0) {
-        await Promise.all(relatedTables.map(tNum => updateTable(tNum, "changeStatus", "ว่าง", "เงินสด")));
+
+      if (tableId) {
+        await updateTable(tableId, "changeStatus", "ว่าง", "เงินสด");
+        if (relatedTables.length > 0) {
+          await Promise.all(relatedTables.map(tNum => updateTable(tNum, "changeStatus", "ว่าง", "เงินสด")));
+        }
       }
       router.push("/table");
-    } catch (e) { alert("เกิดข้อผิดพลาด"); } finally { setLoading(false); }
+    } catch (e) {
+      console.error(e);
+      alert("เกิดข้อผิดพลาดในการบันทึกบิล");
+    } finally { setLoading(false); }
   };
 
   const goToTransferPayment = () => {
-    const params = new URLSearchParams({
-      table_id: String(tableId),
-      amount: String(totalPrice),
-      related: relatedTables.join(",")
-    });
+    const params = new URLSearchParams();
+    if (tableId) params.append('table_id', String(tableId));
+    if (type) params.append('type', type);
+    if (customerName) params.append('customerName', customerName);
+
+    params.append('amount', String(totalPrice));
+    if (relatedTables.length > 0) params.append('related', relatedTables.join(","));
+
+    // ❌ ไม่ต้องส่ง remark ไปหน้าโอนเงิน
+    // if (remark) params.append('remark', remark);
+
     router.push(`/payment?${params.toString()}`);
   };
 
@@ -234,7 +307,14 @@ function BillingContent() {
           <div className="flex items-center gap-4">
             <SidebarTrigger />
             <div>
-              <h1 className="text-lg font-bold">เช็คบิล โต๊ะ {tableId}</h1>
+              <h1 className="text-sm font-bold text-zinc-900 dark:text-zinc-100">
+                เช็คบิล
+                {type === 'takeout' ? (
+                  <span className="text-purple-600 flex items-center gap-1"><User className="w-4 h-4" /> {customerName}</span>
+                ) : (
+                  <span>โต๊ะ {tableId}</span>
+                )}
+              </h1>
               {tableInfo?.group_id && (
                 <Badge variant="outline" className="text-[10px] bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-900/20 dark:text-blue-400">
                   <LinkIcon className="w-2.5 h-2.5 mr-1" />
@@ -275,29 +355,53 @@ function BillingContent() {
                     </TableHeader>
                     <TableBody>
                       {orders.map((item) => (
-                        <TableRow key={item.menu_id} className="dark:border-zinc-800">
+                        <TableRow
+                          key={item.isCancelled ? `${item.menu_id}-cancelled` : item.menu_id}
+                          className={`dark:border-zinc-800 transition-colors ${item.isCancelled ? 'bg-red-50/50 dark:bg-red-950/20' : ''}`}
+                        >
                           <TableCell className="pl-6 py-4">
                             <div className="flex flex-col gap-1">
-                              <span className="font-semibold dark:text-zinc-200">{item.name}</span>
-                              <div className="flex flex-wrap gap-1">
-                                {Object.entries(item.tables).map(([tNum, q]) => (
-                                  <span key={tNum} className="text-[10px] font-medium bg-zinc-100 dark:bg-zinc-800 text-zinc-500 dark:text-zinc-400 px-2 py-0.5 rounded-full border dark:border-zinc-700">
-                                    โต๊ะ {tNum}: {q}
+                              <span className={`font-semibold flex items-center gap-2 
+                                ${item.isCancelled ? 'text-gray-400 line-through decoration-gray-400' : 'dark:text-zinc-200'}`}>
+                                {item.name}
+                                {item.isCancelled && (
+                                  <span className="no-underline inline-flex items-center text-[10px] text-red-500 bg-red-100 px-2 py-0.5 rounded-full dark:bg-red-900/50 dark:text-red-300">
+                                    <XCircle className="w-3 h-3 mr-1" /> ยกเลิก
                                   </span>
-                                ))}
+                                )}
+                              </span>
+
+                              <div className={`flex flex-wrap gap-1 ${item.isCancelled ? 'opacity-50' : ''}`}>
+                                {Object.entries(item.tables).map(([tNum, q]) => {
+                                  if (tNum === '0' || tNum === 'Takeaway') return null;
+                                  return (
+                                    <span key={tNum} className="text-[10px] font-medium bg-zinc-100 dark:bg-zinc-800 text-zinc-500 dark:text-zinc-400 px-2 py-0.5 rounded-full border dark:border-zinc-700">
+                                      โต๊ะ {tNum}: {q}
+                                    </span>
+                                  );
+                                })}
                               </div>
                             </div>
                           </TableCell>
+
                           <TableCell className="text-center">
-                            {isEditing ? (
+                            {isEditing && !item.isCancelled ? (
                               <div className="flex items-center justify-center gap-2">
                                 <Button size="icon" variant="outline" className="h-8 w-8 rounded-full" onClick={() => handleAdjustQtyAction(item, -1)} disabled={adjustingId === item.menu_id}><Minus className="w-3 h-3" /></Button>
                                 <span className="font-bold w-6 dark:text-zinc-200">{item.qty}</span>
                                 <Button size="icon" variant="outline" className="h-8 w-8 rounded-full" onClick={() => handleAdjustQtyAction(item, 1)} disabled={adjustingId === item.menu_id}><Plus className="w-3 h-3" /></Button>
                               </div>
-                            ) : <Badge variant="secondary" className="font-bold px-3 py-1 rounded-full text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400 border-none">x {item.qty}</Badge>}
+                            ) : (
+                              <Badge variant="secondary" className={`font-bold px-3 py-1 rounded-full border-none 
+                                    ${item.isCancelled ? 'bg-gray-100 text-gray-400 line-through dark:bg-zinc-800 dark:text-zinc-600' : 'text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400'}`}>
+                                x {item.qty}
+                              </Badge>
+                            )}
                           </TableCell>
-                          <TableCell className="text-right pr-6 font-bold dark:text-zinc-200">{item.total.toLocaleString()} ฿</TableCell>
+
+                          <TableCell className={`text-right pr-6 font-bold ${item.isCancelled ? 'text-gray-400' : 'dark:text-zinc-200'}`}>
+                            {item.total.toLocaleString()} ฿
+                          </TableCell>
                         </TableRow>
                       ))}
                     </TableBody>
@@ -337,15 +441,18 @@ function BillingContent() {
             </DialogHeader>
 
             {paymentStep === 'select' ? (
-              <div className="grid grid-cols-2 gap-4 pt-2">
-                <button onClick={() => setPaymentStep('cash_input')} className="p-8 border-2 rounded-[1.5rem] flex flex-col items-center gap-3 hover:border-green-500 hover:bg-green-50/50 dark:border-zinc-800 dark:hover:bg-green-500/10 transition-all group">
-                  <Banknote className="w-12 h-12 text-green-500 group-hover:scale-110 transition-transform" />
-                  <span className="font-bold text-lg text-zinc-700 dark:text-zinc-300">เงินสด</span>
-                </button>
-                <button onClick={goToTransferPayment} className="p-8 border-2 rounded-[1.5rem] flex flex-col items-center gap-3 hover:border-blue-500 hover:bg-blue-50/50 dark:border-zinc-800 dark:hover:bg-blue-500/10 transition-all group">
-                  <CreditCard className="w-12 h-12 text-blue-500 group-hover:scale-110 transition-transform" />
-                  <span className="font-bold text-lg text-zinc-700 dark:text-zinc-300">เงินโอน</span>
-                </button>
+              <div className="space-y-4 pt-2">
+                {/* ❌ ลบช่องกรอกหมายเหตุออก */}
+                <div className="grid grid-cols-2 gap-4">
+                  <button onClick={() => setPaymentStep('cash_input')} className="p-8 border-2 rounded-[1.5rem] flex flex-col items-center gap-3 hover:border-green-500 hover:bg-green-50/50 dark:border-zinc-800 dark:hover:bg-green-500/10 transition-all group">
+                    <Banknote className="w-12 h-12 text-green-500 group-hover:scale-110 transition-transform" />
+                    <span className="font-bold text-lg text-zinc-700 dark:text-zinc-300">เงินสด</span>
+                  </button>
+                  <button onClick={goToTransferPayment} className="p-8 border-2 rounded-[1.5rem] flex flex-col items-center gap-3 hover:border-blue-500 hover:bg-blue-50/50 dark:border-zinc-800 dark:hover:bg-blue-500/10 transition-all group">
+                    <CreditCard className="w-12 h-12 text-blue-500 group-hover:scale-110 transition-transform" />
+                    <span className="font-bold text-lg text-zinc-700 dark:text-zinc-300">เงินโอน</span>
+                  </button>
+                </div>
               </div>
             ) : (
               <div className="space-y-6 pt-2">
@@ -398,7 +505,6 @@ function BillingContent() {
   );
 }
 
-// 3. เพิ่มส่วนนี้สำหรับการ Export ออกไปใช้งานจริง (ตัวครอบ Suspense)
 export default function BillingPage() {
   return (
     <Suspense fallback={<div className="flex h-screen w-full items-center justify-center">Loading...</div>}>

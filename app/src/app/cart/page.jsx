@@ -1,4 +1,4 @@
-// app/cart/page.jsx (Pitch Black Mode)
+// app/cart/page.jsx
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
@@ -12,25 +12,43 @@ import { Trash2, Plus, Minus, ArrowLeft, ShoppingBag, Utensils, UtensilsCrossed 
 export default function CartPage() {
     const router = useRouter();
     const searchParams = useSearchParams();
+
+    // --- 1. รับค่า Params ---
     const table = useMemo(() => searchParams.get("table") ?? "", [searchParams]);
+    const type = searchParams.get("type");
+    const customerName = searchParams.get("customerName");
+    // ✅ เพิ่ม: รับเบอร์โทรศัพท์
+    const customerPhone = searchParams.get("customerPhone");
+
     const [cart, setCart] = useState([]);
     const [isClient, setIsClient] = useState(false);
 
+    // --- 2. แก้ Redirect Logic ---
     useEffect(() => {
         setIsClient(true);
-        if (!table) router.replace("/table");
-    }, [table, router]);
+        // ถ้าไม่มีเลขโต๊ะ "และ" ไม่ใช่ Takeout ให้ดีดกลับ
+        if (!table && type !== 'takeout') {
+            router.replace("/table-status-dashboard");
+        }
+    }, [table, type, router]);
+
+    // --- 3. แก้ LocalStorage Key ---
+    const cartKey = useMemo(() => {
+        if (table) return `cart_${table}`;
+        if (type === 'takeout') return `cart_takeout`;
+        return null;
+    }, [table, type]);
 
     useEffect(() => {
-        if (!table) return;
-        const savedCart = JSON.parse(localStorage.getItem(`cart_${table}`) || "[]");
+        if (!cartKey) return;
+        const savedCart = JSON.parse(localStorage.getItem(cartKey) || "[]");
         setCart(Array.isArray(savedCart) ? savedCart : []);
-    }, [table]);
+    }, [cartKey]);
 
     function updateCart(newCart) {
         setCart(newCart);
-        if (table) {
-            localStorage.setItem(`cart_${table}`, JSON.stringify(newCart));
+        if (cartKey) {
+            localStorage.setItem(cartKey, JSON.stringify(newCart));
         }
     }
 
@@ -79,8 +97,9 @@ export default function CartPage() {
         [cart]
     );
 
+    // --- 4. แก้ API Payload ---
     async function confirmOrder() {
-        if (!table) return;
+        if (!table && type !== 'takeout') return;
         if (cart.length === 0) {
             alert("ตะกร้าว่าง ไม่สามารถสั่งอาหารได้");
             return;
@@ -102,19 +121,27 @@ export default function CartPage() {
                 };
             });
 
+            // สร้าง Body ตามประเภทออเดอร์
+            const body = {
+                items: payloadItems,
+                type: type || 'dine_in', // default
+                customerName: customerName || null,
+                // ✅ เพิ่ม: ส่งเบอร์โทรไปให้ Backend บันทึก
+                customerPhone: customerPhone || null,
+                table_number: table ? Number(table) : null // ถ้า takeout เป็น null
+            };
+
             const res = await fetch("/api/orders", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                    table_number: Number(table),
-                    items: payloadItems,
-                }),
+                body: JSON.stringify(body),
             });
 
             const data = await res.json();
             if (res.ok) {
-                localStorage.removeItem(`cart_${table}`);
+                if (cartKey) localStorage.removeItem(cartKey);
                 setCart([]);
+                // สั่งเสร็จกลับไปหน้า /table ตามที่ต้องการ
                 router.push("/table");
             } else {
                 alert(data.message || "เกิดข้อผิดพลาดในการบันทึกคำสั่งซื้อ");
@@ -124,6 +151,12 @@ export default function CartPage() {
             alert("เกิดข้อผิดพลาด กรุณาลองใหม่");
         }
     }
+
+    // สร้าง URL สำหรับปุ่มย้อนกลับ/สั่งเพิ่ม
+    // ✅ เพิ่ม: ส่ง customerPhone กลับไปด้วย
+    const backUrl = type === 'takeout'
+        ? `/orders?type=takeout&customerName=${encodeURIComponent(customerName || '')}&customerPhone=${encodeURIComponent(customerPhone || '')}`
+        : `/orders?table=${table}`;
 
     if (!isClient) return null;
 
@@ -139,14 +172,19 @@ export default function CartPage() {
                     <div className="flex items-center gap-4">
                         <SidebarTrigger />
                         <div>
-                            <h1 className="text-xl font-bold text-gray-800 dark:text-zinc-50">สรุปรายการสั่งซื้อ</h1>
-                            <p className="text-xs text-gray-500 dark:text-zinc-500">โต๊ะ: {table || "-"}</p>
+                            <h1 className="text-sm font-bold text-zinc-900 dark:text-zinc-100">สรุปรายการสั่งซื้อ</h1>
+                            <p className="text-xs text-gray-500 dark:text-zinc-500">
+                                {type === 'takeout'
+                                    ? `Takeout: ${customerName || '-'} ${customerPhone ? `(${customerPhone})` : ''}`
+                                    : `โต๊ะ: ${table || "-"}`
+                                }
+                            </p>
                         </div>
                     </div>
                     <Button
                         variant="ghost"
                         size="sm"
-                        onClick={() => router.back()}
+                        onClick={() => router.push(backUrl)}
                         className="text-gray-600 hover:text-gray-900 dark:text-zinc-400 dark:hover:bg-zinc-900"
                     >
                         <ArrowLeft className="mr-2 h-4 w-4" />
@@ -167,7 +205,7 @@ export default function CartPage() {
                             </div>
                             <Button
                                 className="bg-orange-600 hover:bg-orange-700 mt-2"
-                                onClick={() => router.push(`/orders?table=${table}`)}
+                                onClick={() => router.push(backUrl)}
                             >
                                 <Utensils className="mr-2 h-4 w-4" />
                                 ไปหน้าสั่งอาหาร
@@ -286,7 +324,7 @@ export default function CartPage() {
                                 <Button
                                     variant="outline"
                                     size="sm"
-                                    onClick={() => router.push(`/orders?table=${table}`)}
+                                    onClick={() => router.push(backUrl)}
                                     className="dark:border-zinc-800 dark:hover:bg-zinc-900 dark:text-zinc-300"
                                 >
                                     สั่งเพิ่ม

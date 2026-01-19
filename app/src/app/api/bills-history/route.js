@@ -1,6 +1,7 @@
+// app/api/bills-history/route.js
+
 import { NextResponse } from "next/server";
 import pool from "@/lib/db";
-
 
 async function getTableColumns(connection) {
   const [cols] = await connection.query(
@@ -26,9 +27,13 @@ export async function GET() {
 
     if (columns.includes('status')) fields.push("b.status");
     if (columns.includes('void_reason')) fields.push("b.void_reason");
+    if (columns.includes('customer_name')) fields.push("b.customer_name");
+
+    if (columns.includes('remark')) fields.push("b.remark");
+
     if (columns.includes('closed_by_id')) {
       fields.push("b.closed_by_id");
-      fields.push("e.name_th AS cashier_name"); 
+      fields.push("e.name_th AS cashier_name");
     }
 
     const sql = `
@@ -61,7 +66,6 @@ export async function PATCH(req) {
       return NextResponse.json({ bill_id, closed_by_id, closed_by_name: name });
     }
 
-    // 2. VOID บิลปกติ
     if (status === 'VOID' && type !== 'EDIT') {
       if (!user_id || !void_reason) return NextResponse.json({ error: "ข้อมูลไม่ครบ" }, { status: 400 });
 
@@ -75,11 +79,9 @@ export async function PATCH(req) {
     if (type === 'EDIT') {
       if (!user_id || !items?.length || !void_reason) return NextResponse.json({ error: "ข้อมูลไม่ครบ" }, { status: 400 });
 
-      const calculatedTotal = items.reduce((sum, item) => sum + ((item.qty || item.quantity || 0) * (item.price || 0)), 0);
-
       await connection.beginTransaction();
       try {
-        const [oldBill] = await connection.query("SELECT table_id FROM bills WHERE bill_id = ?", [bill_id]);
+        const [oldBill] = await connection.query("SELECT table_id, customer_name, remark FROM bills WHERE bill_id = ?", [bill_id]);
         if (!oldBill.length) throw new Error("ไม่พบข้อมูลบิลเดิม");
 
         await connection.query(
@@ -88,10 +90,11 @@ export async function PATCH(req) {
         );
 
         const cashReceived = payment_type === 'เงินสด' ? total_price : 0;
+
         const [insertRes] = await connection.query(
-          `INSERT INTO bills (table_id, total_price, payment_type, status, created_at, closed_by_id, cash_received, change_amount) 
-           VALUES (?, ?, ?, 'COMPLETED', NOW(), ?, ?, 0)`,
-          [oldBill[0].table_id, total_price, payment_type, user_id, cashReceived]
+          `INSERT INTO bills (table_id, customer_name, remark, total_price, payment_type, status, created_at, closed_by_id, cash_received, change_amount) 
+           VALUES (?, ?, ?, ?, ?, 'COMPLETED', NOW(), ?, ?, 0)`,
+          [oldBill[0].table_id, oldBill[0].customer_name, oldBill[0].remark, total_price, payment_type, user_id, cashReceived]
         );
         const newId = insertRes.insertId;
 

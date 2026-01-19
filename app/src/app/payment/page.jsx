@@ -1,3 +1,4 @@
+// app/payment/page.jsx
 "use client";
 
 import { useState, useEffect, useMemo, useRef } from "react";
@@ -14,6 +15,7 @@ import {
   Smartphone,
   UploadCloud,
   Trash2,
+  MessageSquare // ✅ เพิ่มไอคอน
 } from "lucide-react";
 
 export default function PaymentPage() {
@@ -21,18 +23,20 @@ export default function PaymentPage() {
   const router = useRouter();
   const fileInputRef = useRef(null);
 
-  // ✅ 1. รับค่าจาก Params (รองรับการส่งยอดเงินและโต๊ะที่เกี่ยวข้อง)
+  // ✅ 1. รับค่าจาก Params
   const tableParam = searchParams.get("table_id");
   const amountParam = searchParams.get("amount") || "0";
   const relatedTablesRaw = searchParams.get("related") || "";
-  
+  // ✅ รับค่า remark ที่ส่งมาจากหน้า Billing
+  const remarkParam = searchParams.get("remark") || "";
+
   const tableId = useMemo(() => {
     const n = Number(tableParam);
     return Number.isFinite(n) && n > 0 ? n : null;
   }, [tableParam]);
 
-  const relatedTables = useMemo(() => 
-    relatedTablesRaw ? relatedTablesRaw.split(",").filter(t => t !== "") : [], 
+  const relatedTables = useMemo(() =>
+    relatedTablesRaw ? relatedTablesRaw.split(",").filter(t => t !== "") : [],
     [relatedTablesRaw]
   );
 
@@ -45,7 +49,6 @@ export default function PaymentPage() {
   const [receiptImage, setReceiptImage] = useState(null);
   const [slipFile, setSlipFile] = useState(null);
 
-  // ดึงข้อมูลพนักงาน
   useEffect(() => {
     const fetchMe = async () => {
       try {
@@ -62,7 +65,6 @@ export default function PaymentPage() {
     fetchMe();
   }, []);
 
-  // สร้าง QR Code เมื่อเข้าหน้าหรือจำนวนเงินเปลี่ยน
   const generateQR = async (value) => {
     const amt = Number(value);
     if (!amt || amt <= 0) return setError("จำนวนเงินไม่ถูกต้อง");
@@ -75,7 +77,7 @@ export default function PaymentPage() {
       if (res.ok && data?.qrCodeDataUrl) {
         setQrCode(data.qrCodeDataUrl);
         setError("");
-        setTimeLeft(3 * 60); // 3 นาที
+        setTimeLeft(3 * 60);
       } else {
         setError(data?.error || "ไม่สามารถสร้าง QR ได้");
       }
@@ -92,7 +94,6 @@ export default function PaymentPage() {
     }
   }, [amountParam]);
 
-  // จัดการตัวนับเวลาถอยหลัง
   useEffect(() => {
     if (timeLeft <= 0) return;
     const interval = setInterval(() => {
@@ -107,7 +108,6 @@ export default function PaymentPage() {
     return `${m}:${s}`;
   };
 
-  // เลือกรูปภาพใบเสร็จ
   const handleFileChange = (event) => {
     const file = event.target.files?.[0];
     if (file) {
@@ -117,7 +117,6 @@ export default function PaymentPage() {
     }
   };
 
-  // ดึงรายการอาหารเพื่อสรุปบิล
   const buildBillItemsFromOrders = async (id) => {
     const res = await fetch(`/api/orders?table=${id}`, { cache: "no-store" });
     const orders = await res.json();
@@ -143,7 +142,7 @@ export default function PaymentPage() {
     return Object.values(summary);
   };
 
-  // บันทึกบิลลงฐานข้อมูล (ใช้ FormData เพื่อความสม่ำเสมอกับ Backend)
+  // ✅ บันทึกบิลลงฐานข้อมูล (เพิ่มการส่ง remark)
   const createBillRecord = async (items) => {
     const formData = new FormData();
     formData.append("table_id", String(tableId));
@@ -154,6 +153,10 @@ export default function PaymentPage() {
     formData.append("closed_by_name", currentEmployee?.name ?? "");
     formData.append("cash_received", String(amount));
     formData.append("change_amount", "0");
+
+    // ✅ ส่ง remark ไปบันทึกด้วย
+    if (remarkParam) formData.append("remark", remarkParam);
+
     if (slipFile) formData.append("slip_image", slipFile);
 
     const res = await fetch("/api/bills", { method: "POST", body: formData });
@@ -161,7 +164,6 @@ export default function PaymentPage() {
     return res.json();
   };
 
-  // ✅ ฟังก์ชันยืนยันการชำระเงิน (ปิดโต๊ะทั้งหมดที่เกี่ยวข้อง)
   const completePayment = async () => {
     if (!tableId) return alert("ไม่พบเลขโต๊ะ");
     if (!receiptImage) return alert("กรุณาอัปโหลดรูปใบเสร็จ");
@@ -172,16 +174,14 @@ export default function PaymentPage() {
       const items = await buildBillItemsFromOrders(tableId);
       await createBillRecord(items);
 
-      // อัปเดตสถานะโต๊ะหลัก
       await fetch(`/api/tables/${tableId}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action: "changeStatus", status: "ว่าง", paymentType: "เงินโอน" }),
       });
 
-      // อัปเดตสถานะโต๊ะที่รวมมาด้วย (ถ้ามี)
       if (relatedTables.length > 0) {
-        await Promise.all(relatedTables.map(tNum => 
+        await Promise.all(relatedTables.map(tNum =>
           fetch(`/api/tables/${tNum}`, {
             method: "PUT",
             headers: { "Content-Type": "application/json" },
@@ -219,6 +219,13 @@ export default function PaymentPage() {
             <div className="text-4xl font-black text-gray-800 dark:text-white">
               {Number(amount).toLocaleString()} <span className="text-lg font-normal text-gray-400">บาท</span>
             </div>
+            {/* ✅ แสดง Remark ให้เห็น (ถ้ามี) */}
+            {remarkParam && (
+              <div className="flex items-center justify-center gap-1.5 text-xs text-orange-600 dark:text-orange-400 mt-2 bg-orange-50 dark:bg-orange-900/20 py-1 px-3 rounded-full w-fit mx-auto">
+                <MessageSquare className="w-3 h-3" />
+                <span>หมายเหตุ: {remarkParam}</span>
+              </div>
+            )}
           </div>
 
           <div className="relative mx-auto w-64 h-64 bg-white border-2 border-gray-100 rounded-xl flex items-center justify-center overflow-hidden dark:bg-zinc-800 dark:border-zinc-700">
@@ -250,7 +257,7 @@ export default function PaymentPage() {
                 </Button>
               </div>
             ) : (
-              <div 
+              <div
                 className="p-8 border-2 border-dashed rounded-xl flex flex-col items-center justify-center cursor-pointer hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors"
                 onClick={() => fileInputRef.current?.click()}
               >
@@ -271,7 +278,7 @@ export default function PaymentPage() {
             {loading ? "กำลังดำเนินการ..." : <><CheckCircle2 className="mr-2 h-5 w-5" /> ยืนยันชำระเงิน</>}
           </Button>
           {!receiptImage && <p className="text-[10px] text-red-500 font-bold">* จำเป็นต้องแนบหลักฐานการโอน</p>}
-          
+
           {currentEmployee && (
             <div className="flex items-center gap-2 text-[10px] text-zinc-500 uppercase font-bold">
               <Smartphone className="w-3 h-3" /> ผู้รับเงิน: {currentEmployee.name}

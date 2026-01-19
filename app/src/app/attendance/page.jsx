@@ -1,0 +1,447 @@
+"use client";
+
+import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { AppSidebar } from "@/components/app-sidebar";
+import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
+import { Card, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "@/components/ui/table";
+import { 
+  Loader2, LogIn, LogOut, Clock, CalendarDays, 
+  History, Timer, MapPin, Camera 
+} from "lucide-react";
+
+// --- 📍 พิกัดร้าน: เดอะพาเลซ ขอนแก่น ---
+const SHOP_LOCATION = {
+  lat: 16.4633962, 
+  lng: 102.8276568
+};
+const ALLOWED_RADIUS_METERS = 50; // ระยะห่างที่ยอมรับได้ (เมตร)
+// ----------------------------------------------------
+
+export default function AttendancePage() {
+  const router = useRouter();
+  const [isLoading, setIsLoading] = useState(true);
+  const [isProcessing, setIsProcessing] = useState(false);
+  
+  const [currentTime, setCurrentTime] = useState(new Date());
+  const [isCheckedIn, setIsCheckedIn] = useState(false);
+  const [history, setHistory] = useState([]);
+  const [currentSession, setCurrentSession] = useState(null);
+  
+  // State สำหรับเก็บรูปถ่าย
+  const [photo, setPhoto] = useState(null);
+
+  useEffect(() => {
+    const timer = setInterval(() => setCurrentTime(new Date()), 1000);
+    return () => clearInterval(timer);
+  }, []);
+
+  const fetchAttendance = async () => {
+    const userId = localStorage.getItem("userId");
+    if (!userId) { router.push("/"); return; }
+
+    try {
+      const res = await fetch(`/api/attendance?userId=${userId}`);
+      if (!res.ok) throw new Error("Failed to fetch");
+      const data = await res.json();
+      
+      setHistory(data.history || []);
+      setIsCheckedIn(data.isCheckedIn);
+      setCurrentSession(data.currentSession);
+    } catch (error) {
+      console.error(error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchAttendance();
+  }, [router]);
+
+  // --- ฟังก์ชันย่อรูปภาพ (แก้ปัญหา Packet Too Large) ---
+  const compressImage = (file) => {
+    return new Promise((resolve) => {
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      reader.onload = (event) => {
+        const img = new Image();
+        img.src = event.target.result;
+        img.onload = () => {
+          const canvas = document.createElement("canvas");
+          
+          // กำหนดขนาดสูงสุด (800px ก็ชัดพอสำหรับดูหน้าคนแล้วครับ)
+          const MAX_WIDTH = 800;
+          const MAX_HEIGHT = 800;
+          let width = img.width;
+          let height = img.height;
+
+          if (width > height) {
+            if (width > MAX_WIDTH) {
+              height *= MAX_WIDTH / width;
+              width = MAX_WIDTH;
+            }
+          } else {
+            if (height > MAX_HEIGHT) {
+              width *= MAX_HEIGHT / height;
+              height = MAX_HEIGHT;
+            }
+          }
+
+          canvas.width = width;
+          canvas.height = height;
+
+          const ctx = canvas.getContext("2d");
+          ctx.drawImage(img, 0, 0, width, height);
+
+          // แปลงเป็น JPEG คุณภาพ 0.7 (ลดขนาดไฟล์ได้ 90%+)
+          const dataUrl = canvas.toDataURL("image/jpeg", 0.7);
+          resolve(dataUrl);
+        };
+      };
+    });
+  };
+
+  // ฟังก์ชันคำนวณระยะห่าง (Haversine Formula)
+  const calculateDistance = (lat1, lon1, lat2, lon2) => {
+    const R = 6371e3; // รัศมีโลก (เมตร)
+    const φ1 = lat1 * Math.PI / 180;
+    const φ2 = lat2 * Math.PI / 180;
+    const Δφ = (lat2 - lat1) * Math.PI / 180;
+    const Δλ = (lon2 - lon1) * Math.PI / 180;
+
+    const a = Math.sin(Δφ/2) * Math.sin(Δφ/2) +
+              Math.cos(φ1) * Math.cos(φ2) *
+              Math.sin(Δλ/2) * Math.sin(Δλ/2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+
+    return R * c; // ผลลัพธ์เป็นเมตร
+  };
+
+  // ฟังก์ชันขอพิกัดปัจจุบัน
+  const getCurrentLocation = () => {
+    return new Promise((resolve, reject) => {
+      if (!navigator.geolocation) {
+        reject(new Error("เบราว์เซอร์นี้ไม่รองรับ GPS"));
+        return;
+      }
+      navigator.geolocation.getCurrentPosition(
+        (position) => resolve({
+          lat: position.coords.latitude,
+          lng: position.coords.longitude
+        }),
+        (error) => reject(error),
+        { enableHighAccuracy: true, timeout: 5000, maximumAge: 0 }
+      );
+    });
+  };
+
+  // ฟังก์ชันจัดการเมื่อถ่ายรูปเสร็จ (เรียกใช้ compressImage)
+  const handlePhotoCapture = async (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      try {
+        const resizedImage = await compressImage(file);
+        setPhoto(resizedImage);
+      } catch (error) {
+        console.error("Error compressing image:", error);
+        alert("เกิดข้อผิดพลาดในการประมวลผลรูปภาพ");
+      }
+    }
+  };
+
+  const handleToggleAttendance = async () => {
+    const userId = localStorage.getItem("userId");
+    if (!userId) return;
+
+    setIsProcessing(true);
+
+    let locationData = { lat: null, lng: null };
+
+    // --- เงื่อนไขสำหรับ "เข้างาน" (Check In) ---
+    if (!isCheckedIn) {
+      
+      // 1. เช็คว่าถ่ายรูปหรือยัง
+      if (!photo) {
+        alert("กรุณาถ่ายรูปยืนยันตัวตนก่อนเข้างาน");
+        setIsProcessing(false);
+        return;
+      }
+
+      // 2. เช็ค GPS
+      try {
+        const pos = await getCurrentLocation();
+        locationData = pos;
+        
+        const distance = calculateDistance(pos.lat, pos.lng, SHOP_LOCATION.lat, SHOP_LOCATION.lng);
+        console.log(`Distance: ${distance.toFixed(2)} meters`);
+
+        if (distance > ALLOWED_RADIUS_METERS) {
+          alert(`คุณอยู่นอกพื้นที่ร้าน! (ห่าง ${distance.toFixed(0)} เมตร)\nต้องอยู่ในรัศมี ${ALLOWED_RADIUS_METERS} เมตร จากเดอะพาเลซ`);
+          setIsProcessing(false);
+          return; 
+        }
+      } catch (error) {
+        console.error(error);
+        alert("ไม่สามารถระบุตำแหน่งได้ กรุณาเปิด GPS");
+        setIsProcessing(false);
+        return;
+      }
+    }
+
+    // ส่งข้อมูลไป API
+    const action = isCheckedIn ? "check_out" : "check_in";
+
+    try {
+      const res = await fetch("/api/attendance", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ 
+          userId, 
+          action,
+          lat: locationData.lat, 
+          lng: locationData.lng,
+          photo: isCheckedIn ? null : photo // ส่งรูปเฉพาะตอนเข้างาน
+        }),
+      });
+
+      if (res.ok) {
+        await fetchAttendance(); 
+        if (!isCheckedIn) {
+            alert("เข้างานสำเร็จ! (บันทึกพิกัดและรูปภาพเรียบร้อย)");
+            setPhoto(null); // เคลียร์รูป
+        }
+      } else {
+        const err = await res.json();
+        alert(err.error);
+      }
+    } catch (error) {
+      alert("เกิดข้อผิดพลาดในการเชื่อมต่อ: " + error.message);
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  const calculateDuration = (start, end) => {
+    if (!start || !end) return "-";
+    const startTime = new Date(start);
+    const endTime = new Date(end);
+    const diffMs = endTime - startTime;
+    const hours = Math.floor(diffMs / 3600000);
+    const minutes = Math.floor((diffMs % 3600000) / 60000);
+    return `${hours} ชม. ${minutes} นาที`;
+  };
+
+  const formatDateTime = (dateStr, type = 'time') => {
+    if (!dateStr) return "-";
+    const date = new Date(dateStr);
+    if (type === 'time') {
+      return date.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' });
+    }
+    return date.toLocaleDateString('th-TH', { day: 'numeric', month: 'short', year: '2-digit' });
+  };
+
+  if (isLoading) {
+    return (
+      <div className="flex h-screen items-center justify-center bg-zinc-50 dark:bg-black">
+        <Loader2 className="h-10 w-10 animate-spin text-orange-500" />
+      </div>
+    );
+  }
+
+  return (
+    <SidebarProvider>
+      <AppSidebar />
+      <SidebarInset className="bg-zinc-50/50 dark:bg-black">
+        
+        <header className="sticky top-0 z-50 flex h-16 items-center justify-between px-6 border-b bg-white shadow-sm dark:bg-black dark:border-zinc-800">
+          <div className="flex items-center gap-3">
+            <SidebarTrigger />
+            <div className="h-6 w-px bg-zinc-200 dark:bg-zinc-700 hidden md:block"></div>
+            <h1 className="text-sm font-bold text-zinc-900 dark:text-zinc-100">บันทึกเวลาเข้า-ออกงาน</h1>
+          </div>
+        </header>
+
+        <main className="p-6 md:p-8 max-w-5xl mx-auto min-h-[calc(100vh-4rem)] space-y-8">
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            
+            {/* Clock Card */}
+            <Card className="border-none shadow-sm bg-gradient-to-br from-zinc-900 to-zinc-800 text-white rounded-2xl overflow-hidden relative">
+              <div className="absolute top-0 right-0 p-32 bg-white/5 rounded-full blur-3xl -mr-16 -mt-16"></div>
+              <CardContent className="p-8 flex flex-col justify-between h-full relative z-10">
+                <div>
+                   <p className="text-zinc-400 font-medium mb-1 flex items-center gap-2">
+                     <CalendarDays className="w-4 h-4" /> 
+                     {currentTime.toLocaleDateString('th-TH', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
+                   </p>
+                   <h2 className="text-5xl md:text-6xl font-bold tracking-tight font-mono">
+                     {currentTime.toLocaleTimeString('th-TH', { hour12: false })}
+                   </h2>
+                </div>
+                <div className="mt-8">
+                   <div className="flex items-center gap-2 text-sm text-zinc-300">
+                      <MapPin className="w-4 h-4 text-orange-500" />
+                      <span>ตรวจสอบพิกัด & รูปถ่าย</span>
+                   </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Action Card */}
+            <Card className="border-none shadow-sm bg-white dark:bg-zinc-900 rounded-2xl ring-1 ring-zinc-100 dark:ring-zinc-800 flex flex-col justify-center items-center p-8 text-center">
+               
+               {/* 📸 ส่วนถ่ายรูป (แสดงเฉพาะตอนยังไม่เข้างาน) */}
+               {!isCheckedIn && (
+                 <div className="mb-6 w-full flex flex-col items-center">
+                    <div className="relative w-32 h-32 bg-zinc-100 dark:bg-zinc-800 rounded-2xl overflow-hidden border-2 border-dashed border-zinc-300 dark:border-zinc-700 flex items-center justify-center mb-3">
+                      {photo ? (
+                        <img src={photo} alt="Preview" className="w-full h-full object-cover" />
+                      ) : (
+                        <div className="text-zinc-400 flex flex-col items-center">
+                           <Camera className="w-8 h-8 mb-1" />
+                           <span className="text-xs">รูปยืนยัน</span>
+                        </div>
+                      )}
+                      
+                      <input 
+                        type="file" 
+                        accept="image/*" 
+                        capture="user" 
+                        id="camera-input"
+                        className="hidden"
+                        onChange={handlePhotoCapture}
+                      />
+                    </div>
+                    
+                    <label 
+                      htmlFor="camera-input" 
+                      className="cursor-pointer text-sm font-medium text-orange-600 bg-orange-50 px-4 py-2 rounded-full hover:bg-orange-100 transition-colors"
+                    >
+                      {photo ? "ถ่ายใหม่" : "กดเพื่อถ่ายรูป"}
+                    </label>
+                 </div>
+               )}
+
+               <div className="mb-6">
+                 {/* Icon Status */}
+                 {!isCheckedIn && photo ? null : ( 
+                    <div className={`w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-4 ${isCheckedIn ? 'bg-emerald-100 text-emerald-600' : 'hidden'}`}>
+                        {isCheckedIn && <Clock className="w-10 h-10" />}
+                    </div>
+                 )}
+                 
+                 <h3 className="text-xl font-bold text-zinc-900 dark:text-white">
+                   {isCheckedIn ? "คุณกำลังปฏิบัติงาน" : (photo ? "พร้อมเข้างาน" : "กรุณาถ่ายรูปเพื่อเข้างาน")}
+                 </h3>
+                 <p className="text-zinc-500 text-sm mt-1">
+                   {isCheckedIn 
+                     ? `เริ่มงานเมื่อ ${formatDateTime(currentSession?.check_in)}` 
+                     : "ระบบจะตรวจสอบ GPS และรูปถ่ายก่อนบันทึก"}
+                 </p>
+               </div>
+               
+               <Button 
+                 size="lg" 
+                 onClick={handleToggleAttendance}
+                 disabled={isProcessing || (!isCheckedIn && !photo)} // ล็อคปุ่มถ้าไม่ถ่ายรูปตอนเข้างาน
+                 className={`w-full max-w-xs h-14 text-lg font-bold rounded-xl shadow-lg transition-all active:scale-95 ${
+                    isCheckedIn 
+                    ? "bg-rose-500 hover:bg-rose-600 shadow-rose-500/20" 
+                    : "bg-emerald-500 hover:bg-emerald-600 shadow-emerald-500/20"
+                 }`}
+               >
+                 {isProcessing ? (
+                   <Loader2 className="mr-2 h-6 w-6 animate-spin" />
+                 ) : (
+                   isCheckedIn ? <><LogOut className="mr-2 h-6 w-6" /> ลงเวลาออกงาน</> : <><LogIn className="mr-2 h-6 w-6" /> ลงเวลาเข้างาน</>
+                 )}
+               </Button>
+            </Card>
+          </div>
+
+          {/* History Table */}
+          <div className="space-y-4">
+             <div className="flex items-center gap-2 px-1">
+                <History className="w-5 h-5 text-zinc-500" />
+                <h3 className="text-lg font-bold text-zinc-800 dark:text-zinc-200">ประวัติการเข้า-ออกงาน</h3>
+             </div>
+             
+             <Card className="border-none shadow-sm bg-white dark:bg-zinc-900 rounded-2xl ring-1 ring-zinc-100 dark:ring-zinc-800 overflow-hidden">
+                <div className="overflow-x-auto">
+                   <Table>
+                      <TableHeader className="bg-zinc-50/50 dark:bg-zinc-950/50">
+                         <TableRow>
+                            <TableHead className="w-[150px]">วันที่</TableHead>
+                            <TableHead>เวลาเข้า</TableHead>
+                            <TableHead>เวลาออก</TableHead>
+                            <TableHead>รวมเวลา</TableHead>
+                            <TableHead className="text-right">สถานะ</TableHead>
+                         </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                         {history.length === 0 ? (
+                           <TableRow>
+                             <TableCell colSpan={5} className="text-center py-10 text-zinc-500">
+                                ยังไม่มีประวัติการเข้างาน
+                             </TableCell>
+                           </TableRow>
+                         ) : (
+                           history.map((record) => (
+                              <TableRow key={record.id} className="hover:bg-zinc-50/50 dark:hover:bg-zinc-800/50">
+                                 <TableCell className="font-medium text-zinc-700 dark:text-zinc-300">
+                                    {formatDateTime(record.work_date, 'date')}
+                                 </TableCell>
+                                 <TableCell>
+                                    <div className="flex items-center gap-2">
+                                       <div className="w-2 h-2 rounded-full bg-emerald-500"></div>
+                                       {formatDateTime(record.check_in)}
+                                    </div>
+                                 </TableCell>
+                                 <TableCell>
+                                    {record.check_out ? (
+                                       <div className="flex items-center gap-2">
+                                          <div className="w-2 h-2 rounded-full bg-rose-500"></div>
+                                          {formatDateTime(record.check_out)}
+                                       </div>
+                                    ) : (
+                                       <span className="text-zinc-400 italic">-</span>
+                                    )}
+                                 </TableCell>
+                                 <TableCell>
+                                    <div className="flex items-center gap-1.5 text-zinc-600 dark:text-zinc-400">
+                                       <Timer className="w-4 h-4" />
+                                       {record.check_out 
+                                          ? calculateDuration(record.check_in, record.check_out) 
+                                          : <span className="text-emerald-600 font-medium animate-pulse">กำลังทำงาน...</span>
+                                       }
+                                    </div>
+                                 </TableCell>
+                                 <TableCell className="text-right">
+                                    {record.check_out ? (
+                                       <Badge variant="outline" className="text-zinc-500 border-zinc-200 bg-zinc-50">
+                                          เสร็จสิ้น
+                                       </Badge>
+                                    ) : (
+                                       <Badge className="bg-emerald-500 hover:bg-emerald-600">
+                                          ทำงานอยู่
+                                       </Badge>
+                                    )}
+                                 </TableCell>
+                              </TableRow>
+                           ))
+                         )}
+                      </TableBody>
+                   </Table>
+                </div>
+             </Card>
+          </div>
+
+        </main>
+      </SidebarInset>
+    </SidebarProvider>
+  );
+}

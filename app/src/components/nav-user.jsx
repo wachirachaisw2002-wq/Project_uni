@@ -20,8 +20,8 @@ import {
 } from "@/components/ui/sidebar";
 
 export function NavUser({ user }) {
-
-  user = user || { name: "Guest User", email: "guest@example.com" };
+  // Fallback data
+  const currentUser = user || { name: "Guest User", email: "guest@example.com" };
 
   const { isMobile } = useSidebar();
   const router = useRouter();
@@ -36,13 +36,19 @@ export function NavUser({ user }) {
     setTheme(theme === "light" ? "dark" : "light");
   };
 
-  const nameSafe = user?.name || "";
-  const emailSafe = user?.email || "";
+  // ฟังก์ชันสำหรับลิ้งค์ไปหน้าแก้ไขข้อมูลส่วนตัว
+  const handleEditProfile = () => {
+    // ลิ้งค์ไปที่หน้า /profile (คุณต้องไปสร้างหน้า page.tsx ในโฟลเดอร์ app/profile ด้วยนะครับ)
+    router.push("/profile");
+  };
+
+  const nameSafe = currentUser.name_th || currentUser.name || "User";
+  const emailSafe = currentUser.email || "";
   const initials =
-    user?.avatarFallback ||
+    currentUser.avatarFallback ||
     (typeof nameSafe === "string" && nameSafe.length >= 2
       ? nameSafe.slice(0, 2).toUpperCase()
-      : "");
+      : "US");
 
   return (
     <SidebarMenu>
@@ -84,6 +90,12 @@ export function NavUser({ user }) {
 
             <DropdownMenuSeparator />
 
+            {/* เปลี่ยน onClick ให้เรียก router.push ไปหน้าอื่นแทนการเปิด Dialog */}
+            <DropdownMenuItem onClick={handleEditProfile}>
+              <UserCog className="mr-2 h-4 w-4" />
+              แก้ไขข้อมูลส่วนตัว
+            </DropdownMenuItem>
+
             <DropdownMenuItem onClick={handleThemeToggle}>
               {theme === "dark" ? (
                 <Sun className="mr-2 h-4 w-4" />
@@ -95,7 +107,7 @@ export function NavUser({ user }) {
 
             <DropdownMenuSeparator />
 
-            <DropdownMenuItem onClick={handleLogout}>
+            <DropdownMenuItem onClick={handleLogout} className="text-rose-500 focus:text-rose-500">
               <LogOut className="mr-2 h-4 w-4" />
               ออกจากระบบ
             </DropdownMenuItem>

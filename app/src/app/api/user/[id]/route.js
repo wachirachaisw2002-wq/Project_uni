@@ -3,11 +3,8 @@ import pool from "@/lib/db";
 
 export async function GET(request, { params }) {
   try {
-    // 1. ใส่ await params (แก้ Error Next.js 15)
     const { id } = await params;
 
-    // 2. แก้ SQL: ดึง name_th แต่ตั้งชื่อเล่นว่า name (as name) 
-    // เพื่อให้ Sidebar เอาไปแสดงผลได้เลยโดยไม่ต้องแก้โค้ด Sidebar
     const [rows] = await pool.query(
       `SELECT 
         employee_id, 

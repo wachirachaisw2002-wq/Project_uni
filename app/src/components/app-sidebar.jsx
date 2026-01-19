@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import Image from "next/image"; 
+import Image from "next/image";
 import {
   FileText,
   ClipboardList,
@@ -9,6 +9,8 @@ import {
   BarChart2,
   Utensils,
   Users,
+  Clock, 
+  FileClock,
 } from "lucide-react";
 
 import { NavUser } from "./nav-user";
@@ -31,6 +33,8 @@ const sidebarItems = [
   { href: "/dashboard", icon: <BarChart2 size={20} />, label: "สรุปยอดขาย" },
   { href: "/menu", icon: <Utensils size={20} />, label: "รายการอาหาร" },
   { href: "/employees", icon: <Users size={20} />, label: "ข้อมูลพนักงาน" },
+  { href: "/attendance", icon: <Clock size={20} />, label: "บันทึกเวลาทำงาน" }, 
+  { href: "/time-report", icon: <FileClock size={20} />, label: "รายงานเวลาทำงาน" },
 ];
 
 export function AppSidebar() {
@@ -57,20 +61,20 @@ export function AppSidebar() {
 
   return (
     <Sidebar collapsible="icon">
-      
+
       <SidebarHeader className="h-auto flex pt-6 pb-4 px-4 group-data-[collapsible=icon]:hidden">
-        <div className="flex flex-col items-start w-full"> 
-            {/*<Image 
+        <div className="flex flex-col items-start w-full">
+          {/*<Image 
               src="/logo22323.png" 
               alt="Logo" 
-              width={140} // ปรับให้ใหญ่ขึ้นอีกนิดเพื่อให้สมดุลกับตัวหนังสือใหม่
+              width={140} 
               height={60} 
-              className="object-contain mb-2" // เพิ่มระยะห่างด้านล่างรูปภาพ
+              className="object-contain mb-2" 
               priority
             /*/}
-            <span className="text-base font-extrabold text-[#FF5722] tracking-wide drop-shadow-sm">
-              ระบบจัดการร้านอาหาร
-            </span>
+          <span className="text-base font-extrabold text-[#FF5722] tracking-wide drop-shadow-sm">
+            ระบบจัดการร้านอาหาร
+          </span>
         </div>
       </SidebarHeader>
 

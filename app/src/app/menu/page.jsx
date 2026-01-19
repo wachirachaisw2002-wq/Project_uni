@@ -204,7 +204,7 @@ export default function MenuPage() {
           bg-white/90 backdrop-blur-md dark:bg-zinc-950/80 dark:border-zinc-800">
           <div className="flex items-center gap-4">
             <SidebarTrigger />
-            <h1 className="text-xl font-bold text-zinc-800 dark:text-zinc-100">จัดการเมนูอาหาร</h1>
+            <h1 className="text-sm font-bold text-zinc-900 dark:text-zinc-100">จัดการเมนูอาหาร</h1>
           </div>
           <Button
             onClick={openAddDialog}

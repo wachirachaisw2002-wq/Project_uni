@@ -1,4 +1,4 @@
-// app/order-page/page.jsx (Pitch Black Mode)
+// app/order/page.jsx
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
@@ -31,11 +31,17 @@ export default function OrderPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
+  // --- 1. รับค่า Params ---
   const tableParam = useMemo(
     () => searchParams.get("table") ?? searchParams.get("table_id"),
     [searchParams]
   );
   const selectedTable = tableParam || "";
+
+  // รับค่า type, customerName และ customerPhone
+  const orderType = searchParams.get("type");
+  const customerName = searchParams.get("customerName");
+  const customerPhone = searchParams.get("customerPhone"); // ✅ จุดแก้ไข 1: รับเบอร์โทรศัพท์
 
   const [menus, setMenus] = useState([]);
   const [searchQuery, setSearchQuery] = useState("");
@@ -71,9 +77,13 @@ export default function OrderPage() {
     return ["ทั้งหมด", ...sortedCats];
   }, [menus]);
 
+  // --- 2. Logic การ Redirect ---
   useEffect(() => {
-    if (!tableParam) { router.replace("/table"); }
-  }, [tableParam, router]);
+    // ถ้าไม่มีเลขโต๊ะ "และ" ไม่ใช่ Takeout ถึงจะดีดกลับ
+    if (!tableParam && orderType !== 'takeout') {
+      router.replace("/table-status-dashboard");
+    }
+  }, [tableParam, orderType, router]);
 
   useEffect(() => {
     async function fetchMenus() {
@@ -86,15 +96,26 @@ export default function OrderPage() {
     fetchMenus();
   }, []);
 
+  // --- 3. Key ของ LocalStorage ---
+  const getCartKey = () => {
+    if (selectedTable) return `cart_${selectedTable}`;
+    if (orderType === 'takeout') return `cart_takeout`;
+    return null;
+  };
+
   useEffect(() => {
-    if (selectedTable) {
-      const saved = JSON.parse(localStorage.getItem(`cart_${selectedTable}`) || "[]");
+    const key = getCartKey();
+    if (key) {
+      const saved = JSON.parse(localStorage.getItem(key) || "[]");
       setCart(saved);
-    } else { setCart([]); }
-  }, [selectedTable]);
+    } else {
+      setCart([]);
+    }
+  }, [selectedTable, orderType]);
 
   function addToCart(item, noteText, qty = 1) {
-    if (!selectedTable) { alert("ไม่พบเลขโต๊ะ"); return; }
+    if (!selectedTable && orderType !== 'takeout') { alert("ไม่พบเลขโต๊ะ"); return; }
+
     const menuId = item.menu_id ?? item.id;
     const existingIndex = cart.findIndex(
       (p) => (p.menu_id ?? p.id) === menuId && (p.note ?? "") === (noteText ?? "")
@@ -106,7 +127,9 @@ export default function OrderPage() {
       updatedCart.push({ ...item, qty, note: noteText, menu_id: menuId });
     }
     setCart(updatedCart);
-    localStorage.setItem(`cart_${selectedTable}`, JSON.stringify(updatedCart));
+
+    const key = getCartKey();
+    if (key) localStorage.setItem(key, JSON.stringify(updatedCart));
   }
 
   function decreaseFromCart(item) {
@@ -118,7 +141,9 @@ export default function OrderPage() {
         updatedCart[existingIndex].qty -= 1;
       } else { updatedCart.splice(existingIndex, 1); }
       setCart(updatedCart);
-      localStorage.setItem(`cart_${selectedTable}`, JSON.stringify(updatedCart));
+
+      const key = getCartKey();
+      if (key) localStorage.setItem(key, JSON.stringify(updatedCart));
     }
   }
 
@@ -149,11 +174,16 @@ export default function OrderPage() {
 
   const totalCartItems = cart.reduce((sum, item) => sum + item.qty, 0);
 
+  // ✅ จุดแก้ไข 2: ส่ง customerPhone ต่อไปที่ Cart URL
+  const cartUrl = orderType === 'takeout'
+    ? `/cart?type=takeout&customerName=${encodeURIComponent(customerName || '')}&customerPhone=${encodeURIComponent(customerPhone || '')}`
+    : `/cart?table=${selectedTable}`;
+
   return (
     <SidebarProvider>
       <AppSidebar />
       <SidebarInset>
-        {/* Header: ปรับเป็นดำสนิท (dark:bg-black) */}
+        {/* Header */}
         <header className="sticky top-0 z-10 flex h-16 items-center justify-between px-6 border-b 
             bg-white/95 backdrop-blur shadow-sm
             dark:bg-black/95 dark:border-zinc-900 dark:shadow-none"
@@ -161,14 +191,20 @@ export default function OrderPage() {
           <div className="flex items-center gap-4">
             <SidebarTrigger />
             <div>
-              <h1 className="text-xl font-bold text-gray-800 dark:text-zinc-50">สั่งอาหาร</h1>
-              <p className="text-xs text-gray-500 dark:text-zinc-500">โต๊ะ: {selectedTable || "-"}</p>
+              <h1 className="text-sm font-bold text-zinc-900 dark:text-zinc-100">สั่งอาหาร</h1>
+              {/* แสดงชื่อลูกค้าและเบอร์โทร */}
+              <p className="text-xs text-gray-500 dark:text-zinc-500">
+                {orderType === 'takeout'
+                  ? `Takeout: ${customerName || 'ลูกค้าทั่วไป'} ${customerPhone ? `(${customerPhone})` : ''}`
+                  : `โต๊ะ: ${selectedTable || "-"}`
+                }
+              </p>
             </div>
           </div>
 
           <Button
             className="relative bg-gray-900 hover:bg-gray-800 text-white shadow-md dark:bg-zinc-800 dark:hover:bg-zinc-700 dark:text-zinc-50"
-            onClick={() => router.push(`/cart?table=${selectedTable}`)}
+            onClick={() => router.push(cartUrl)}
           >
             <ShoppingCart className="mr-2 h-4 w-4" />
             ตะกร้า
@@ -182,10 +218,10 @@ export default function OrderPage() {
           </Button>
         </header>
 
-        {/* Main Content Background: ดำสนิท (dark:bg-black) */}
+        {/* Main Content */}
         <main className="p-6 bg-gray-50/50 min-h-[calc(100vh-4rem)] flex flex-col gap-6 dark:bg-black">
 
-          {/* Search & Filter: ดำสนิทขอบเนียน (dark:bg-black dark:border-zinc-800) */}
+          {/* Search & Filter */}
           <div className="flex flex-col md:flex-row items-center gap-4 w-full bg-white p-4 rounded-xl shadow-sm border border-gray-100 dark:bg-black dark:border-zinc-800">
             <div className="relative flex-1 w-full">
               <Search className="absolute left-3 top-2.5 h-4 w-4 text-gray-400 dark:text-zinc-600" />
@@ -227,7 +263,6 @@ export default function OrderPage() {
                 return (
                   <Card
                     key={menu.menu_id ?? menu.id}
-                    // Card: ดำสนิทและเงาแบบนุ่มนวล (dark:bg-black dark:border-zinc-900)
                     className="flex flex-row overflow-hidden h-36 border border-gray-100 shadow-sm hover:shadow-md transition-all group bg-white relative dark:bg-black dark:border-zinc-900 dark:shadow-none"
                   >
                     {/* Image Section */}
@@ -319,7 +354,7 @@ export default function OrderPage() {
           </div>
         </main>
 
-        {/* Dialog (Popup): ดำสนิท (dark:bg-black) */}
+        {/* Dialog (Popup) */}
         <Dialog open={showDialog} onOpenChange={setShowDialog}>
           <DialogContent className="sm:max-w-md dark:bg-black dark:border-zinc-900">
             <DialogHeader>

@@ -26,7 +26,7 @@ import {
   SelectTrigger,
   SelectValue
 } from "@/components/ui/select";
-import { Edit2, Trash2, Eye, EyeOff, Search, UserPlus, Users, X, Filter, Calendar, MapPin, Phone, Mail } from "lucide-react";
+import { Edit2, Trash2, Eye, EyeOff, Search, UserPlus, FileText, X } from "lucide-react";
 
 export default function Page() {
   const POSITIONS = ["เจ้าของร้าน", "ผู้จัดการร้าน", "พนักงานทั่วไป", "พนักงานในครัว"];
@@ -37,11 +37,17 @@ export default function Page() {
   const [searchQuery, setSearchQuery] = useState("");
   const [activePosition, setActivePosition] = useState("ทั้งหมด");
   const [activeStatus, setActiveStatus] = useState("ทั้งหมด");
+
+  // State สำหรับ Dialog แก้ไข/เพิ่ม
   const [open, setOpen] = useState(false);
   const [editingEmployee, setEditingEmployee] = useState(null);
   const [showPassword, setShowPassword] = useState(false);
 
+  // State สำหรับ Dialog ดูข้อมูล (View Only)
+  const [viewOpen, setViewOpen] = useState(false);
+  const [viewingEmployee, setViewingEmployee] = useState(null);
 
+  // Form States
   const [position, setPosition] = useState("");
   const [status, setStatus] = useState("");
   const [empType, setEmpType] = useState("");
@@ -54,6 +60,7 @@ export default function Page() {
       name_th: raw?.name_th ?? raw?.name ?? "",
       name_en: raw?.name_en ?? "",
       nickname: raw?.nickname ?? "",
+      id_card_number: raw?.id_card_number ?? "",
       birth_date: raw?.birth_date ? raw.birth_date.split('T')[0] : "",
       address: raw?.address ?? "",
       phone: raw?.phone ?? "",
@@ -92,7 +99,8 @@ export default function Page() {
     if (q) {
       list = list.filter((emp) =>
         (emp.name_th || "").toLowerCase().includes(q) ||
-        (emp.nickname || "").toLowerCase().includes(q)
+        (emp.nickname || "").toLowerCase().includes(q) ||
+        (emp.id_card_number || "").includes(q)
       );
     }
     return list;
@@ -116,6 +124,11 @@ export default function Page() {
     setOpen(true);
   };
 
+  const handleViewClick = (emp) => {
+    setViewingEmployee(emp);
+    setViewOpen(true);
+  };
+
   const handleDeleteClick = async (id) => {
     if (!id || !confirm("คุณต้องการลบพนักงานนี้หรือไม่?")) return;
     try {
@@ -134,6 +147,7 @@ export default function Page() {
       name_th: formData.get("name_th"),
       name_en: formData.get("name_en"),
       nickname: formData.get("nickname") || null,
+      id_card_number: formData.get("id_card_number") || null,
       birth_date: formData.get("birth_date") || null,
       address: formData.get("address"),
       phone: formData.get("phone"),
@@ -174,6 +188,16 @@ export default function Page() {
     return "bg-zinc-500/10 text-zinc-500 dark:bg-zinc-500/5 dark:text-zinc-400";
   }
 
+  // Helper Component สำหรับแสดงข้อมูลเป็นบรรทัดๆ
+  const InfoRow = ({ label, value, isLong = false }) => (
+    <div className={`flex flex-col gap-1 ${isLong ? 'col-span-2' : ''}`}>
+      <span className="text-xs text-zinc-500 uppercase tracking-wide">{label}</span>
+      <span className="text-sm font-medium text-zinc-900 dark:text-zinc-200 break-words">
+        {value || "-"}
+      </span>
+    </div>
+  );
+
   return (
     <SidebarProvider>
       <AppSidebar />
@@ -183,7 +207,7 @@ export default function Page() {
           bg-white/90 backdrop-blur-md dark:bg-zinc-950/80 dark:border-zinc-800">
           <div className="flex items-center gap-4">
             <SidebarTrigger />
-            <h1 className="text-xl font-bold text-zinc-800 dark:text-zinc-100">ทะเบียนพนักงาน</h1>
+            <h1 className="text-sm font-bold text-zinc-900 dark:text-zinc-100">ข้อมูลพนักงาน</h1>
           </div>
           <Button onClick={handleAddClick} className="bg-orange-600 hover:bg-orange-700 text-white shadow-lg shadow-orange-950/20">
             <UserPlus className="mr-2 h-4 w-4" /> เพิ่มพนักงานใหม่
@@ -197,7 +221,7 @@ export default function Page() {
               <div className="relative">
                 <Search className="absolute left-3 top-2.5 h-4 w-4 text-zinc-400" />
                 <Input
-                  placeholder="ค้นหาชื่อ หรือ ชื่อเล่น..."
+                  placeholder="ค้นหาชื่อ, ชื่อเล่น หรือ เลขบัตร ปชช...."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   className="pl-9 dark:bg-zinc-950 dark:border-zinc-800 dark:text-zinc-100"
@@ -245,7 +269,7 @@ export default function Page() {
                     <TableHead className="dark:text-zinc-400">วันที่เริ่มงาน</TableHead>
                     <TableHead className="dark:text-zinc-400">สถานะ</TableHead>
                     <TableHead className="text-right dark:text-zinc-400">ค่าจ้าง</TableHead>
-                    <TableHead className="w-[100px]"></TableHead>
+                    <TableHead className="w-[140px]"></TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -259,6 +283,7 @@ export default function Page() {
                         <TableCell>
                           <div className="font-semibold text-zinc-800 dark:text-zinc-100">{emp.name_th}</div>
                           <div className="text-[10px] text-zinc-500 uppercase">{emp.name_en}</div>
+                          {emp.id_card_number && <div className="text-[10px] text-zinc-400 mt-0.5">ID: {emp.id_card_number}</div>}
                         </TableCell>
                         <TableCell className="dark:text-zinc-300">{emp.position}</TableCell>
                         <TableCell>
@@ -283,6 +308,9 @@ export default function Page() {
                         </TableCell>
                         <TableCell>
                           <div className="flex justify-end gap-1">
+                            <Button variant="ghost" size="icon" onClick={() => handleViewClick(emp)} className="h-8 w-8 text-zinc-500 hover:text-zinc-800 dark:hover:bg-zinc-800">
+                              <Eye className="h-4 w-4" />
+                            </Button>
                             <Button variant="ghost" size="icon" onClick={() => handleEditClick(emp)} className="h-8 w-8 text-blue-500 hover:text-blue-400 dark:hover:bg-blue-500/10">
                               <Edit2 className="h-4 w-4" />
                             </Button>
@@ -299,6 +327,78 @@ export default function Page() {
             </CardContent>
           </Card>
 
+          {/* Dialog สำหรับ View Data (เพิ่ม max-h และ overflow-y-auto แล้ว) */}
+          <Dialog open={viewOpen} onOpenChange={setViewOpen}>
+            <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto dark:bg-zinc-950 dark:border-zinc-800">
+              <DialogHeader>
+                <DialogTitle className="flex items-center gap-2 text-xl dark:text-zinc-100">
+                  <FileText className="h-5 w-5 text-orange-500" />
+                  รายละเอียดพนักงาน
+                </DialogTitle>
+                <DialogDescription>ข้อมูลทั้งหมดของพนักงาน</DialogDescription>
+              </DialogHeader>
+
+              {viewingEmployee && (
+                <div className="space-y-6 py-2">
+                  <div className="flex flex-col items-center justify-center py-4 bg-zinc-50 dark:bg-zinc-900/50 rounded-lg border dark:border-zinc-800">
+                    <h2 className="text-2xl font-bold text-zinc-800 dark:text-white">{viewingEmployee.name_th}</h2>
+                    <p className="text-sm text-zinc-500 uppercase font-medium tracking-wider">{viewingEmployee.name_en}</p>
+                    <Badge className={`mt-3 ${getStatusBadge(viewingEmployee.status)}`}>{viewingEmployee.status}</Badge>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-x-8 gap-y-6">
+                    {/* ข้อมูลส่วนตัว */}
+                    <div className="col-span-2">
+                      <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100 mb-3 flex items-center gap-2">
+                        <span className="w-1 h-4 bg-orange-500 rounded-full"></span> ข้อมูลส่วนตัว
+                      </h3>
+                      <div className="grid grid-cols-2 gap-4 pl-3">
+                        <InfoRow label="ชื่อเล่น" value={viewingEmployee.nickname} />
+                        <InfoRow label="เลขบัตรประชาชน" value={viewingEmployee.id_card_number} />
+                        <InfoRow label="วันเกิด" value={viewingEmployee.birth_date ? new Date(viewingEmployee.birth_date).toLocaleDateString('th-TH', { dateStyle: 'long' }) : '-'} />
+                        <InfoRow label="เบอร์โทรศัพท์" value={viewingEmployee.phone} />
+                        <InfoRow label="Line ID" value={viewingEmployee.line_id} />
+                        <InfoRow label="ที่อยู่" value={viewingEmployee.address} isLong />
+                      </div>
+                    </div>
+
+                    <Separator className="col-span-2 dark:bg-zinc-800" />
+
+                    {/* ข้อมูลการทำงาน */}
+                    <div className="col-span-2">
+                      <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100 mb-3 flex items-center gap-2">
+                        <span className="w-1 h-4 bg-blue-500 rounded-full"></span> ข้อมูลการทำงาน
+                      </h3>
+                      <div className="grid grid-cols-2 gap-4 pl-3">
+                        <InfoRow label="ตำแหน่ง" value={viewingEmployee.position} />
+                        <InfoRow label="ประเภทการจ้าง" value={viewingEmployee.employment_type} />
+                        <InfoRow label="เริ่มงานวันที่" value={viewingEmployee.start_date ? new Date(viewingEmployee.start_date).toLocaleDateString('th-TH', { dateStyle: 'long' }) : '-'} />
+                        <InfoRow label="เงินเดือน/ค่าจ้าง" value={`${viewingEmployee.salary.toLocaleString()} บาท`} />
+                        <InfoRow label="ความพร้อมเข้ากะ (Shift)" value={viewingEmployee.shift_availability} isLong />
+                      </div>
+                    </div>
+
+                    <Separator className="col-span-2 dark:bg-zinc-800" />
+
+                    {/* ข้อมูลบัญชี */}
+                    <div className="col-span-2">
+                      <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100 mb-3 flex items-center gap-2">
+                        <span className="w-1 h-4 bg-zinc-500 rounded-full"></span> บัญชีผู้ใช้
+                      </h3>
+                      <div className="grid grid-cols-2 gap-4 pl-3">
+                        <InfoRow label="อีเมล (Username)" value={viewingEmployee.email} isLong />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+              <DialogFooter className="sticky bottom-0 bg-white dark:bg-zinc-950 pt-4 border-t dark:border-zinc-800">
+                <Button onClick={() => setViewOpen(false)} className="w-full sm:w-auto">ปิดหน้าต่าง</Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+
+          {/* Dialog Form สำหรับ Add/Edit (อันเดิม) */}
           <Dialog open={open} onOpenChange={setOpen}>
             <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto dark:bg-zinc-950 dark:border-zinc-800">
               <DialogHeader>
@@ -310,7 +410,7 @@ export default function Page() {
 
                 <div className="space-y-4">
                   <h3 className="text-xs font-bold text-orange-500 uppercase tracking-widest bg-orange-500/5 py-1 px-2 rounded w-fit">
-                    1. ข้อมูลส่วนตัว 
+                    1. ข้อมูลส่วนตัว
                   </h3>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="space-y-2">
@@ -325,6 +425,22 @@ export default function Page() {
                       <Label className="dark:text-zinc-400">ชื่อเล่น</Label>
                       <Input name="nickname" defaultValue={editingEmployee?.nickname} placeholder="ชื่อเล่น" className="dark:bg-zinc-900 dark:border-zinc-800" />
                     </div>
+
+                    <div className="space-y-2">
+                      <Label className="dark:text-zinc-400">เลขบัตรประชาชน (13 หลัก)</Label>
+                      <Input
+                        name="id_card_number"
+                        defaultValue={editingEmployee?.id_card_number}
+                        placeholder="เลข 13 หลัก"
+                        maxLength={13}
+                        inputMode="numeric"
+                        className="dark:bg-zinc-900 dark:border-zinc-800"
+                        onInput={(e) => {
+                          e.target.value = e.target.value.replace(/[^0-9]/g, '');
+                        }}
+                      />
+                    </div>
+
                     <div className="space-y-2">
                       <Label className="dark:text-zinc-400">วัน/เดือน/ปีเกิด</Label>
                       <Input type="date" name="birth_date" defaultValue={editingEmployee?.birth_date} required className="dark:bg-zinc-900 dark:border-zinc-800" />
@@ -386,7 +502,10 @@ export default function Page() {
                       <Label className="dark:text-zinc-400">อัตราค่าจ้าง (บาท)</Label>
                       <Input type="number" name="salary" defaultValue={editingEmployee?.salary} required className="dark:bg-zinc-900 dark:border-zinc-800" />
                     </div>
-                    <Input type="hidden" name="shift_availability" defaultValue={editingEmployee?.shift_availability || ""} />
+                    <div className="col-span-1 md:col-span-2 space-y-2">
+                      <Label className="dark:text-zinc-400">วัน/เวลา ที่สะดวกเข้างาน (Shift Availability)</Label>
+                      <Input name="shift_availability" defaultValue={editingEmployee?.shift_availability || ""} placeholder="เช่น จันทร์-ศุกร์ 9.00-18.00" className="dark:bg-zinc-900 dark:border-zinc-800" />
+                    </div>
                   </div>
                 </div>
 
@@ -394,7 +513,7 @@ export default function Page() {
 
                 <div className="space-y-4">
                   <h3 className="text-xs font-bold text-zinc-500 uppercase tracking-widest bg-zinc-500/5 py-1 px-2 rounded w-fit">
-                    3. บัญชีผู้ใช้ 
+                    3. บัญชีผู้ใช้
                   </h3>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="space-y-2">

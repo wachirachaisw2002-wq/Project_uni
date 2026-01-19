@@ -11,9 +11,6 @@ export async function GET() {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // ✅ จุดที่แก้: 
-    // 1. เปลี่ยน name เป็น name_th as name
-    // 2. เพิ่ม nickname และ position (มีประโยชน์มากสำหรับการเช็คสิทธิ์แอดมิน)
     const [rows] = await pool.query(
       `SELECT 
         employee_id, 
@@ -33,10 +30,10 @@ export async function GET() {
 
     return NextResponse.json({
       employee_id: me.employee_id,
-      name: me.name,         // คือ name_th
-      nickname: me.nickname, // ส่งชื่อเล่นไปด้วย
+      name: me.name,     
+      nickname: me.nickname,
       email: me.email,
-      position: me.position, // ส่งตำแหน่งไปด้วย (สำคัญ)
+      position: me.position, 
     });
 
   } catch (err) {
