@@ -98,7 +98,7 @@ export default function Page() {
         <header className="sticky top-0 z-10 flex h-16 shrink-0 items-center justify-between gap-2 border-b bg-white/95 backdrop-blur px-4">
           <div className="flex items-center gap-2">
             <SidebarTrigger className="-ml-1" />
-            <h1 className="text-xl font-bold text-gray-800">สรุปยอดขายและ BI Dashboard</h1>
+            <h1 className="text-sm font-bold text-zinc-900 dark:text-zinc-100 truncate">สรุปยอดขายและ BI Dashboard</h1>
           </div>
           
           {/* Time Filter */}

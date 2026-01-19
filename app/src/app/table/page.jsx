@@ -1,4 +1,3 @@
-// app/table-status-dashboard/page.jsx
 "use client";
 
 import { useEffect, useState } from "react";
