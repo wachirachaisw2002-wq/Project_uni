@@ -17,7 +17,6 @@ export default function CartPage() {
     const table = useMemo(() => searchParams.get("table") ?? "", [searchParams]);
     const type = searchParams.get("type");
     const customerName = searchParams.get("customerName");
-    // ✅ เพิ่ม: รับเบอร์โทรศัพท์
     const customerPhone = searchParams.get("customerPhone");
 
     const [cart, setCart] = useState([]);
@@ -26,7 +25,6 @@ export default function CartPage() {
     // --- 2. แก้ Redirect Logic ---
     useEffect(() => {
         setIsClient(true);
-        // ถ้าไม่มีเลขโต๊ะ "และ" ไม่ใช่ Takeout ให้ดีดกลับ
         if (!table && type !== 'takeout') {
             router.replace("/table-status-dashboard");
         }
@@ -121,14 +119,12 @@ export default function CartPage() {
                 };
             });
 
-            // สร้าง Body ตามประเภทออเดอร์
             const body = {
                 items: payloadItems,
-                type: type || 'dine_in', // default
+                type: type || 'dine_in',
                 customerName: customerName || null,
-                // ✅ เพิ่ม: ส่งเบอร์โทรไปให้ Backend บันทึก
                 customerPhone: customerPhone || null,
-                table_number: table ? Number(table) : null // ถ้า takeout เป็น null
+                table_number: table ? Number(table) : null
             };
 
             const res = await fetch("/api/orders", {
@@ -141,7 +137,6 @@ export default function CartPage() {
             if (res.ok) {
                 if (cartKey) localStorage.removeItem(cartKey);
                 setCart([]);
-                // สั่งเสร็จกลับไปหน้า /table ตามที่ต้องการ
                 router.push("/table");
             } else {
                 alert(data.message || "เกิดข้อผิดพลาดในการบันทึกคำสั่งซื้อ");
@@ -152,8 +147,6 @@ export default function CartPage() {
         }
     }
 
-    // สร้าง URL สำหรับปุ่มย้อนกลับ/สั่งเพิ่ม
-    // ✅ เพิ่ม: ส่ง customerPhone กลับไปด้วย
     const backUrl = type === 'takeout'
         ? `/orders?type=takeout&customerName=${encodeURIComponent(customerName || '')}&customerPhone=${encodeURIComponent(customerPhone || '')}`
         : `/orders?table=${table}`;
@@ -164,7 +157,7 @@ export default function CartPage() {
         <SidebarProvider>
             <AppSidebar />
             <SidebarInset>
-                {/* Header: ปรับเป็นดำสนิท (dark:bg-black) */}
+                {/* Header */}
                 <header className="sticky top-0 z-10 flex h-16 items-center justify-between px-6 border-b 
                     bg-white/95 backdrop-blur shadow-sm
                     dark:bg-black/95 dark:border-zinc-900 dark:shadow-none"
@@ -175,7 +168,7 @@ export default function CartPage() {
                             <h1 className="text-sm font-bold text-zinc-900 dark:text-zinc-100">สรุปรายการสั่งซื้อ</h1>
                             <p className="text-xs text-gray-500 dark:text-zinc-500">
                                 {type === 'takeout'
-                                    ? `Takeout: ${customerName || '-'} ${customerPhone ? `(${customerPhone})` : ''}`
+                                    ? `สั่งกลับบ้าน: ${customerName || '-'} ${customerPhone ? `(${customerPhone})` : ''}`
                                     : `โต๊ะ: ${table || "-"}`
                                 }
                             </p>
@@ -192,7 +185,7 @@ export default function CartPage() {
                     </Button>
                 </header>
 
-                {/* Main Content Background: ดำสนิท (dark:bg-black) */}
+                {/* Main Content */}
                 <main className="p-4 sm:p-6 bg-gray-50/50 min-h-[calc(100vh-4rem-5rem)] flex flex-col gap-4 pb-32 dark:bg-black">
                     {cart.length === 0 ? (
                         <div className="flex flex-col items-center justify-center h-[60vh] text-gray-400 gap-4">
@@ -221,19 +214,18 @@ export default function CartPage() {
                                 return (
                                     <Card
                                         key={compositeKey}
-                                        // Card: พื้นดำขอบเข้ม (dark:bg-black dark:border-zinc-900)
                                         className="flex flex-row overflow-hidden border border-gray-100 shadow-sm hover:shadow-md transition-shadow bg-white h-28 sm:h-32 dark:bg-black dark:border-zinc-900 dark:shadow-none"
                                     >
-                                        {/* Image Section */}
-                                        <div className="w-32 sm:w-36 h-full flex-shrink-0 relative p-3">
+                                        {/* Image Section: ปรับให้สมมาตรด้วย aspect-square และ padding ที่เหมาะสม */}
+                                        <div className="h-full aspect-square p-2 flex-shrink-0">
                                             <div
-                                                className="w-full h-full relative overflow-hidden rounded-xl bg-gray-100 shadow-sm border border-gray-100 dark:bg-zinc-900 dark:border-zinc-800"
+                                                className="w-full h-full relative overflow-hidden rounded-lg bg-gray-100 shadow-sm border border-gray-100 dark:bg-zinc-900 dark:border-zinc-800"
                                             >
                                                 {item.image ? (
                                                     <img
                                                         src={item.image}
                                                         alt={item.name}
-                                                        className="w-full h-full object-cover"
+                                                        className="w-full h-full object-cover object-center"
                                                     />
                                                 ) : (
                                                     <div className="w-full h-full flex flex-col items-center justify-center text-gray-400 dark:text-zinc-700">
@@ -245,7 +237,7 @@ export default function CartPage() {
                                         </div>
 
                                         {/* รายละเอียด */}
-                                        <div className="flex flex-col flex-1 p-3 pl-0 justify-between">
+                                        <div className="flex flex-col flex-1 py-3 pr-3 pl-0 justify-between">
                                             <div className="flex justify-between items-start gap-1">
                                                 <div className="overflow-hidden">
                                                     <h3 className="font-bold text-sm sm:text-base text-gray-800 dark:text-zinc-50 line-clamp-1">{item.name}</h3>
@@ -306,7 +298,7 @@ export default function CartPage() {
                     )}
                 </main>
 
-                {/* Footer สรุปยอดเงิน (ปรับเป็นดำสนิท) */}
+                {/* Footer สรุปยอดเงิน */}
                 {cart.length > 0 && (
                     <div className="fixed bottom-0 right-0 w-full md:pl-64 z-20">
                         <div

@@ -1,7 +1,6 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import Image from "next/image";
 import {
   FileText,
   ClipboardList,
@@ -9,7 +8,7 @@ import {
   BarChart2,
   Utensils,
   Users,
-  Clock, 
+  Clock,
   FileClock,
 } from "lucide-react";
 
@@ -26,6 +25,9 @@ import {
   SidebarMenu,
 } from "@/components/ui/sidebar";
 
+// นำเข้า Component Logo
+import Logo from "@/components/ui/logo";
+
 const sidebarItems = [
   { href: "/table", icon: <FileText size={20} />, label: "รับออเดอร์" },
   { href: "/order-status", icon: <ClipboardList size={20} />, label: "คำสั่งรายการอาหาร" },
@@ -33,7 +35,7 @@ const sidebarItems = [
   { href: "/dashboard", icon: <BarChart2 size={20} />, label: "สรุปยอดขาย" },
   { href: "/menu", icon: <Utensils size={20} />, label: "รายการอาหาร" },
   { href: "/employees", icon: <Users size={20} />, label: "ข้อมูลพนักงาน" },
-  { href: "/attendance", icon: <Clock size={20} />, label: "บันทึกเวลาทำงาน" }, 
+  { href: "/attendance", icon: <Clock size={20} />, label: "บันทึกเวลาทำงาน" },
   { href: "/time-report", icon: <FileClock size={20} />, label: "รายงานเวลาทำงาน" },
 ];
 
@@ -61,21 +63,32 @@ export function AppSidebar() {
 
   return (
     <Sidebar collapsible="icon">
+      {/* ส่วน Header ปรับให้เป็น SidebarMenu เพื่อให้ alignment ตรงกับด้านล่าง */}
+      <SidebarHeader>
+        <SidebarMenu>
+          <SidebarMenuItem>
+            <SidebarMenuButton
+              size="lg"
+              className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
+            >
+              {/* ส่วนรูปโลโก้ (ทำหน้าที่เป็น Icon) */}
+              <div className="flex aspect-square size-8 items-center justify-center rounded-lg text-sidebar-primary-foreground">
+                {/* ปรับขนาด Logo ให้พอดีกับช่อง Icon (ประมาณ 32-40px) */}
+                <Logo width={40} height={40} className="object-contain" />
+              </div>
 
-      <SidebarHeader className="h-auto flex pt-6 pb-4 px-4 group-data-[collapsible=icon]:hidden">
-        <div className="flex flex-col items-start w-full">
-          {/*<Image 
-              src="/logo22323.png" 
-              alt="Logo" 
-              width={140} 
-              height={60} 
-              className="object-contain mb-2" 
-              priority
-            /*/}
-          <span className="text-base font-extrabold text-[#FF5722] tracking-wide drop-shadow-sm">
-            ระบบจัดการร้านอาหาร
-          </span>
-        </div>
+              {/* ส่วนข้อความ (จะซ่อนอัตโนมัติเมื่อ Sidebar พับ) */}
+              <div className="grid flex-1 text-left text-sm leading-tight">
+                <span className="truncate font-bold text-[#FF5722]">
+                  ร้านตำลืมผัว
+                </span>
+                <span className="truncate text-xs">
+                  ระบบจัดการร้านอาหาร
+                </span>
+              </div>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+        </SidebarMenu>
       </SidebarHeader>
 
       <SidebarContent>

@@ -283,8 +283,8 @@ export default function TableStatusDashboard() {
                 <div className="bg-purple-100 p-4 rounded-full mb-3 group-hover:scale-110 transition-transform dark:bg-purple-900/30">
                   <PlusCircle className="w-8 h-8" />
                 </div>
-                <span className="font-bold text-lg">สั่งกลับบ้าน (ใหม่)</span>
-                <span className="text-xs text-purple-400 mt-1 dark:text-purple-500">Create New Takeout</span>
+                <span className="font-bold text-lg">สั่งกลับบ้าน</span>
+                {/*<span className="text-xs text-purple-400 mt-1 dark:text-purple-500">Create New Takeout</span>*/}
               </CardContent>
             </Card>
 
@@ -447,17 +447,17 @@ export default function TableStatusDashboard() {
         <Dialog open={isTakeoutOpen} onOpenChange={setIsTakeoutOpen}>
           <DialogContent className="dark:bg-black dark:border-zinc-900">
             <DialogHeader>
-              <DialogTitle className="dark:text-zinc-50">สั่งกลับบ้าน (Takeout)</DialogTitle>
+              <DialogTitle className="dark:text-zinc-50">สั่งกลับบ้าน</DialogTitle>
               <DialogDescription className="dark:text-zinc-400">
                 กรุณาระบุข้อมูลลูกค้าเพื่อเปิดออเดอร์
               </DialogDescription>
             </DialogHeader>
             <div className="py-4 space-y-4">
               <div className="space-y-2">
-                <Label className="dark:text-zinc-300">ชื่อลูกค้า / หมายเลขคิว <span className="text-red-500">*</span></Label>
+                <Label className="dark:text-zinc-300">ชื่อลูกค้า<span className="text-red-500">*</span></Label>
                 <Input
                   type="text"
-                  placeholder="Ex. คุณลูกค้า A, คิวที่ 5"
+                  placeholder="คุณลูกค้า A"
                   value={takeoutName}
                   onChange={(e) => setTakeoutName(e.target.value)}
                   autoFocus
@@ -465,10 +465,10 @@ export default function TableStatusDashboard() {
               </div>
               {/* ✅ ช่องกรอกเบอร์โทรศัพท์ */}
               <div className="space-y-2">
-                <Label className="dark:text-zinc-300">เบอร์โทรศัพท์ (ถ้ามี)</Label>
+                <Label className="dark:text-zinc-300">เบอร์โทรศัพท์</Label>
                 <Input
                   type="tel"
-                  placeholder="Ex. 0812345678"
+                  placeholder="0123456789"
                   value={takeoutPhone}
                   onChange={(e) => setTakeoutPhone(e.target.value)}
                   onKeyDown={(e) => e.key === "Enter" && handleConfirmTakeout()}

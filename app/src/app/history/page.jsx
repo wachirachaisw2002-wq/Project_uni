@@ -11,30 +11,26 @@ import { Button } from "@/components/ui/button";
 import {
   Eye,
   CalendarIcon,
-  X,
   Search,
   Receipt,
   Pencil,
-  Save,
   Plus,
   Minus,
   Trash2,
   ChevronLeft,
   ChevronRight,
-  Hash,
   User,
   AlertTriangle,
   ShoppingBag,
-  MessageSquare // ✅ เพิ่มไอคอน MessageSquare
+  MessageSquare
 } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Calendar } from "@/components/ui/calendar";
+import { Calendar } from "@/components/ui/calendar"; // เรียกใช้ Calendar ที่เราแก้เป็น Dropdown แล้ว
 import { format } from "date-fns";
 import { th } from "date-fns/locale";
 import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 
 export default function Page() {
@@ -57,6 +53,7 @@ export default function Page() {
   const [editPaymentType, setEditPaymentType] = useState("");
   const [editReason, setEditReason] = useState("");
 
+  // ดึงข้อมูลพนักงานปัจจุบัน
   useEffect(() => {
     const fetchMe = async () => {
       try {
@@ -72,6 +69,7 @@ export default function Page() {
     fetchMe();
   }, []);
 
+  // ดึงประวัติบิล
   useEffect(() => {
     const fetchOrders = async () => {
       setLoading(true);
@@ -91,6 +89,7 @@ export default function Page() {
     fetchOrders();
   }, []);
 
+  // ดึงรายการอาหารในบิล
   const fetchBillItems = async (billId) => {
     setLoadingItems(true);
     try {
@@ -102,6 +101,7 @@ export default function Page() {
     } catch { setBillItems([]); return []; } finally { setLoadingItems(false); }
   };
 
+  // เปิด Dialog แก้ไข
   const handleOpenEdit = async () => {
     const bill = orders.find(o => o.bill_id === selectedBillId);
     if (!bill) return;
@@ -112,6 +112,7 @@ export default function Page() {
     setEditDialogOpen(true);
   };
 
+  // บันทึกการแก้ไข (Void บิลเก่า + สร้างบิลใหม่)
   const handleSaveEdit = async () => {
     if (!editReason.trim()) return alert("กรุณาระบุสาเหตุ");
     setIsProcessing(true);
@@ -133,6 +134,7 @@ export default function Page() {
     } catch (e) { alert("เกิดข้อผิดพลาด"); } finally { setIsProcessing(false); }
   };
 
+  // Filter ข้อมูล
   const filteredOrders = useMemo(() => {
     return orders.filter((o) => {
       const searchStr = search.toLowerCase();
@@ -182,15 +184,40 @@ export default function Page() {
               />
             </div>
 
+            {/* ✅ ส่วนปฏิทินที่ปรับปรุงแล้ว (ใช้ Dropdown จาก Component) */}
+            {/* ✅ ส่วนปฏิทินที่เรียกใช้จาก components/ui/calendar */}
             <Popover>
               <PopoverTrigger asChild>
-                <Button variant="outline" className="h-10 border-zinc-200 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-300 rounded-xl">
-                  <CalendarIcon className="h-4 w-4 mr-2 text-emerald-500" />
+                <Button 
+                  variant="outline" 
+                  className={`h-10 border-zinc-200 dark:border-zinc-800 dark:bg-zinc-900 rounded-xl transition-all
+                    ${selectedDate ? "text-emerald-600 dark:text-emerald-400 border-emerald-500/30 bg-emerald-50/50 dark:bg-emerald-900/10" : "text-zinc-500 dark:text-zinc-300"}
+                  `}
+                >
+                  <CalendarIcon className={`h-4 w-4 mr-2 ${selectedDate ? "text-emerald-500" : "text-zinc-400"}`} />
                   {selectedDate ? format(selectedDate, "d MMM yyyy", { locale: th }) : "เลือกวันที่"}
                 </Button>
               </PopoverTrigger>
-              <PopoverContent className="p-0 border-zinc-800 bg-black" align="end">
-                <Calendar mode="single" selected={selectedDate} onSelect={(d) => { setSelectedDate(d); setPage(1); }} locale={th} />
+              <PopoverContent 
+                className="w-auto p-4 rounded-3xl shadow-2xl border-none bg-white/95 dark:bg-zinc-900/95 backdrop-blur-xl ring-1 ring-zinc-200 dark:ring-zinc-800" 
+                align="end"
+              >
+                <Calendar
+                  mode="single"
+                  selected={selectedDate}
+                  onSelect={(d) => { setSelectedDate(d); setPage(1); }}
+                  locale={th}
+                  className="p-0"
+                  
+                  // ไม่ต้องใส่ captionLayout หรือ components={{Dropdown...}} ตรงนี้แล้ว
+                  // เพราะใน components/ui/calendar.jsx จัดการให้แล้ว
+                  
+                  // ใส่แค่ classNames เพื่อเปลี่ยนสีวันที่เลือกเป็นสีเขียว (Emerald) ตามธีมร้าน
+                  classNames={{
+                    day_selected: "bg-emerald-500 text-white hover:bg-emerald-600 hover:text-white focus:bg-emerald-600 focus:text-white shadow-lg shadow-emerald-500/30 scale-100",
+                    day_today: "bg-zinc-100 dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 font-bold border border-zinc-200 dark:border-zinc-700",
+                  }}
+                />
               </PopoverContent>
             </Popover>
           </div>
@@ -281,6 +308,7 @@ export default function Page() {
           )}
         </main>
 
+        {/* Dialog ดูรายละเอียดบิล */}
         <Dialog open={open} onOpenChange={setOpen}>
           <DialogContent className="max-w-md bg-white dark:bg-black border-zinc-200 dark:border-zinc-800 p-0 overflow-hidden rounded-3xl">
             <DialogHeader className="p-6 pb-2 border-b dark:border-zinc-900">
@@ -340,7 +368,6 @@ export default function Page() {
                   </span>
                 </div>
 
-                {/* ✅ ส่วนแสดง Remark (ถ้ามี) */}
                 {selectedBillData?.remark && (
                   <div className="bg-yellow-50 dark:bg-yellow-900/10 border border-yellow-100 dark:border-yellow-900/30 p-2.5 rounded-xl text-xs text-yellow-700 dark:text-yellow-500 flex gap-2 items-start">
                     <MessageSquare className="w-4 h-4 shrink-0 mt-0.5" />
@@ -377,11 +404,9 @@ export default function Page() {
           </DialogContent>
         </Dialog>
 
-        {/* ... (Dialog แก้ไขบิล คงเดิม) ... */}
+        {/* Dialog แก้ไขบิล */}
         <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
-          {/* โค้ดส่วน Edit Dialog เหมือนเดิมทุกประการ */}
           <DialogContent className="max-w-3xl bg-white dark:bg-black border-zinc-200 dark:border-zinc-800 p-0 overflow-hidden rounded-3xl shadow-2xl">
-            {/* ... เนื้อหาเหมือนเดิม ... */}
             <DialogHeader className="p-6 bg-zinc-50 dark:bg-zinc-950 border-b dark:border-zinc-900">
               <div className="flex items-center gap-3">
                 <div className="p-2.5 bg-blue-500/10 rounded-2xl">

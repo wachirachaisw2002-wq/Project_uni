@@ -7,14 +7,20 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+// import { Input } from "@/components/ui/input"; // ไม่ได้ใช้แล้ว
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import {
-  Loader2, Calendar, MapPin,
-  Image as ImageIcon, Clock, AlertCircle, RefreshCw
+  Loader2, CalendarIcon, MapPin, // เปลี่ยนจาก Calendar เป็น CalendarIcon เพื่อความชัดเจน
+  Image as ImageIcon, AlertCircle
 } from "lucide-react";
+
+// ✅ Import Component ที่จำเป็นสำหรับปฏิทินใหม่
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { format } from "date-fns";
+import { th } from "date-fns/locale";
 
 export default function TimeReportPage() {
   const [loading, setLoading] = useState(true);
@@ -23,9 +29,9 @@ export default function TimeReportPage() {
 
   // Filters
   const [selectedEmp, setSelectedEmp] = useState("all");
-  const [selectedMonth, setSelectedMonth] = useState(() => {
-    return new Date().toISOString().slice(0, 7); // 'YYYY-MM'
-  });
+  
+  // ✅ เปลี่ยนจาก string มาเก็บเป็น Date object เพื่อใช้กับ Calendar Component
+  const [selectedDate, setSelectedDate] = useState(new Date());
 
   const [photoModalOpen, setPhotoModalOpen] = useState(false);
   const [currentPhoto, setCurrentPhoto] = useState(null);
@@ -51,9 +57,12 @@ export default function TimeReportPage() {
   const fetchReport = useCallback(async () => {
     setLoading(true);
     try {
+      // ✅ แปลง Date object เป็น string "YYYY-MM" สำหรับส่ง API
+      const monthStr = format(selectedDate, "yyyy-MM");
+
       const query = new URLSearchParams({
         employeeId: selectedEmp,
-        month: selectedMonth
+        month: monthStr
       });
 
       const res = await fetch(`/api/attendance/report?${query.toString()}`);
@@ -69,7 +78,7 @@ export default function TimeReportPage() {
     } finally {
       setLoading(false);
     }
-  }, [selectedEmp, selectedMonth]);
+  }, [selectedEmp, selectedDate]); // Trigger เมื่อ selectedDate หรือ selectedEmp เปลี่ยน
 
   useEffect(() => {
     fetchReport();
@@ -99,10 +108,9 @@ export default function TimeReportPage() {
 
   const getInitials = (name) => name ? name.substring(0, 2).toUpperCase() : "US";
 
-  // ✅ แก้ไขฟังก์ชันเปิดแผนที่
   const openGoogleMaps = (lat, lng) => {
     if (!lat || !lng) return;
-    window.open(`https://www.google.com/maps?q=${lat},${lng}`, '_blank');
+    window.open(`https://www.google.com/maps/search/?api=1&query=${lat},${lng}`, '_blank');
   };
 
   const getStatusBadge = (checkoutTime) => {
@@ -134,19 +142,44 @@ export default function TimeReportPage() {
             {/* Filter Card */}
             <Card className="border-none shadow-sm dark:bg-zinc-900/40 dark:ring-1 dark:ring-zinc-800">
               <CardContent className="p-3 space-y-3">
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                {/* ✅ ปรับ Grid เป็น 2 คอลัมน์ เพราะลบปุ่มรีเฟรชออก */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
 
                   <div className="flex flex-col gap-1.5">
                     <label className="text-[10px] font-medium text-zinc-500 uppercase tracking-wider ml-1">เดือน</label>
-                    <div className="relative">
-                      <Input
-                        type="month"
-                        value={selectedMonth}
-                        onChange={(e) => setSelectedMonth(e.target.value)}
-                        className="pl-8 h-9 text-xs dark:bg-zinc-950 dark:border-zinc-800 dark:text-zinc-100 w-full"
-                      />
-                      <Calendar className="absolute left-2.5 top-2.5 h-4 w-4 text-zinc-400" />
-                    </div>
+                    
+                    {/* ✅ ใช้ Popover + Calendar แทน Input type="month" */}
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button 
+                          variant="outline" 
+                          className={`h-9 justify-start text-left font-normal text-xs w-full dark:bg-zinc-950 dark:border-zinc-800 dark:text-zinc-100 ${!selectedDate && "text-muted-foreground"}`}
+                        >
+                          <CalendarIcon className="mr-2 h-3.5 w-3.5 text-zinc-400" />
+                          {selectedDate ? format(selectedDate, "MMMM yyyy", { locale: th }) : <span>เลือกเดือน</span>}
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0 rounded-xl shadow-xl border-zinc-200 dark:border-zinc-800" align="start">
+                        <Calendar
+                          mode="single"
+                          selected={selectedDate}
+                          onSelect={(date) => {
+                            if (date) {
+                                setSelectedDate(date);
+                                // ปฏิทินจะปิดอัตโนมัติหรือไม่ขึ้นอยู่กับ UX ที่ต้องการ 
+                                // ถ้าอยากให้ปิดเลยเมื่อเลือกวันเพื่อเอาเดือน ให้หาวิธีปิด Popover state
+                            }
+                          }}
+                          defaultMonth={selectedDate} // ให้ปฏิทินเปิดมาที่เดือนปัจจุบันที่เลือก
+                          locale={th}
+                          className="p-3"
+                          classNames={{
+                            day_selected: "bg-emerald-500 text-white hover:bg-emerald-600 hover:text-white focus:bg-emerald-600 focus:text-white shadow-lg shadow-emerald-500/30 scale-100",
+                            day_today: "bg-zinc-100 dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 font-bold border border-zinc-200 dark:border-zinc-700",
+                          }}
+                        />
+                      </PopoverContent>
+                    </Popover>
                   </div>
 
                   <div className="flex flex-col gap-1.5">
@@ -166,11 +199,8 @@ export default function TimeReportPage() {
                     </Select>
                   </div>
 
-                  <div className="flex items-end">
-                    <Button variant="outline" onClick={fetchReport} className="w-full h-9 text-xs bg-white hover:bg-zinc-50 dark:bg-zinc-900 dark:border-zinc-800 dark:hover:bg-zinc-800">
-                      <RefreshCw className={`mr-2 h-3 w-3 ${loading ? 'animate-spin' : ''}`} /> รีเฟรช
-                    </Button>
-                  </div>
+                  {/* ❌ ลบปุ่ม Refresh ออกแล้ว */}
+
                 </div>
               </CardContent>
             </Card>
@@ -179,7 +209,6 @@ export default function TimeReportPage() {
             <Card className="border-none shadow-sm overflow-hidden dark:bg-zinc-900/40 dark:ring-1 dark:ring-zinc-800">
               <CardContent className="p-0">
                 <div className="overflow-x-auto w-full">
-                  {/* 👇 ลบ Comment ออกจากตรงนี้แล้ว */}
                   <Table className="min-w-[600px]">
                     <TableHeader className="bg-zinc-50/50 dark:bg-zinc-950/50">
                       <TableRow className="dark:border-zinc-800">

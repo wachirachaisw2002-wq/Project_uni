@@ -702,7 +702,7 @@ export default function OrdersStatusPageSplit() {
                                     <TableCell className="dark:text-zinc-500 text-center align-middle">
                                       {order?.orderType === 'TAKEAWAY' ? (
                                         <div className="flex flex-col items-center">
-                                          <span className="text-xs font-bold text-purple-600 dark:text-purple-400">Takeaway</span>
+                                          <span className="text-xs font-bold text-purple-600 dark:text-purple-400">สั่งกลับบ้าน</span>
                                           <span className="text-[10px] truncate max-w-[80px]">{order.customerName}</span>
                                         </div>
                                       ) : (

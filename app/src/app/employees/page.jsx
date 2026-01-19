@@ -232,7 +232,8 @@ export default function Page() {
                 <div className="flex flex-col gap-1.5">
                   <Label className="text-xs font-medium text-zinc-500 uppercase tracking-wider">ตำแหน่งงาน</Label>
                   <Select value={activePosition} onValueChange={setActivePosition}>
-                    <SelectTrigger className="dark:bg-zinc-950 dark:border-zinc-800">
+                    {/* ✅ เพิ่ม w-full ที่ SelectTrigger */}
+                    <SelectTrigger className="w-full dark:bg-zinc-950 dark:border-zinc-800">
                       <SelectValue placeholder="ทั้งหมด" />
                     </SelectTrigger>
                     <SelectContent className="dark:bg-zinc-900 dark:border-zinc-800">
@@ -244,7 +245,8 @@ export default function Page() {
                 <div className="flex flex-col gap-1.5">
                   <Label className="text-xs font-medium text-zinc-500 uppercase tracking-wider">สถานะการทำงาน</Label>
                   <Select value={activeStatus} onValueChange={setActiveStatus}>
-                    <SelectTrigger className="dark:bg-zinc-950 dark:border-zinc-800">
+                    {/* ✅ เพิ่ม w-full ที่ SelectTrigger */}
+                    <SelectTrigger className="w-full dark:bg-zinc-950 dark:border-zinc-800">
                       <SelectValue placeholder="ทั้งหมด" />
                     </SelectTrigger>
                     <SelectContent className="dark:bg-zinc-900 dark:border-zinc-800">

@@ -3,7 +3,7 @@
 import { useState, useEffect, useMemo } from "react";
 import { AppSidebar } from "@/components/app-sidebar";
 import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
-import { Card, CardHeader, CardTitle, CardContent, CardDescription } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -24,7 +24,7 @@ import {
   SelectTrigger,
   SelectValue
 } from "@/components/ui/select";
-import { Edit2, Trash2, Plus, Search, Utensils, ImageIcon, FolderPlus, ChefHat, Package, Filter, X } from "lucide-react";
+import { Edit2, Trash2, Plus, Search, Utensils, ImageIcon, ChefHat, Package, X } from "lucide-react";
 
 export default function MenuPage() {
   const API_BASE = "/api/menu";
@@ -238,7 +238,8 @@ export default function MenuPage() {
                 <div className="flex flex-col gap-1.5">
                   <Label className="text-xs font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">หมวดหมู่</Label>
                   <Select value={activeCategory} onValueChange={setActiveCategory}>
-                    <SelectTrigger className="dark:bg-zinc-950 dark:border-zinc-800">
+                    {/* ✅ เพิ่ม w-full */}
+                    <SelectTrigger className="w-full dark:bg-zinc-950 dark:border-zinc-800">
                       <SelectValue placeholder="ทั้งหมด" />
                     </SelectTrigger>
                     <SelectContent className="dark:bg-zinc-900 dark:border-zinc-800">
@@ -253,7 +254,8 @@ export default function MenuPage() {
                 <div className="flex flex-col gap-1.5">
                   <Label className="text-xs font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">ประเภทการปรุง</Label>
                   <Select value={activeType} onValueChange={setActiveType}>
-                    <SelectTrigger className="dark:bg-zinc-950 dark:border-zinc-800">
+                    {/* ✅ เพิ่ม w-full */}
+                    <SelectTrigger className="w-full dark:bg-zinc-950 dark:border-zinc-800">
                       <SelectValue placeholder="ทั้งหมด" />
                     </SelectTrigger>
                     <SelectContent className="dark:bg-zinc-900 dark:border-zinc-800">
@@ -381,7 +383,8 @@ export default function MenuPage() {
                   <div className="space-y-2">
                     <Label className="dark:text-zinc-400">ประเภทการปรุง</Label>
                     <Select value={menuType} onValueChange={setMenuType}>
-                      <SelectTrigger className="dark:bg-zinc-900 dark:border-zinc-800">
+                      {/* ✅ เพิ่ม w-full */}
+                      <SelectTrigger className="w-full dark:bg-zinc-900 dark:border-zinc-800">
                         <SelectValue placeholder="เลือกประเภท" />
                       </SelectTrigger>
                       <SelectContent className="dark:bg-zinc-900 dark:border-zinc-800">
@@ -399,7 +402,8 @@ export default function MenuPage() {
                     <div className="space-y-2">
                       <Label className="dark:text-zinc-400">หมวดหมู่</Label>
                       <Select value={category} onValueChange={setCategory}>
-                        <SelectTrigger className="dark:bg-zinc-900 dark:border-zinc-800">
+                        {/* ✅ เพิ่ม w-full */}
+                        <SelectTrigger className="w-full dark:bg-zinc-900 dark:border-zinc-800">
                           <SelectValue placeholder="เลือกหมวดหมู่" />
                         </SelectTrigger>
                         <SelectContent className="dark:bg-zinc-900 dark:border-zinc-800">

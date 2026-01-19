@@ -1,4 +1,3 @@
-// app/order/page.jsx
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
@@ -10,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { Search, ShoppingCart, Plus, Minus, UtensilsCrossed } from "lucide-react";
+import { Search, ShoppingCart, Plus, Minus, UtensilsCrossed, Trash2 } from "lucide-react"; // ✅ เพิ่ม Trash2
 import {
   Select,
   SelectTrigger,
@@ -38,10 +37,9 @@ export default function OrderPage() {
   );
   const selectedTable = tableParam || "";
 
-  // รับค่า type, customerName และ customerPhone
   const orderType = searchParams.get("type");
   const customerName = searchParams.get("customerName");
-  const customerPhone = searchParams.get("customerPhone"); // ✅ จุดแก้ไข 1: รับเบอร์โทรศัพท์
+  const customerPhone = searchParams.get("customerPhone");
 
   const [menus, setMenus] = useState([]);
   const [searchQuery, setSearchQuery] = useState("");
@@ -77,9 +75,7 @@ export default function OrderPage() {
     return ["ทั้งหมด", ...sortedCats];
   }, [menus]);
 
-  // --- 2. Logic การ Redirect ---
   useEffect(() => {
-    // ถ้าไม่มีเลขโต๊ะ "และ" ไม่ใช่ Takeout ถึงจะดีดกลับ
     if (!tableParam && orderType !== 'takeout') {
       router.replace("/table-status-dashboard");
     }
@@ -96,7 +92,6 @@ export default function OrderPage() {
     fetchMenus();
   }, []);
 
-  // --- 3. Key ของ LocalStorage ---
   const getCartKey = () => {
     if (selectedTable) return `cart_${selectedTable}`;
     if (orderType === 'takeout') return `cart_takeout`;
@@ -132,14 +127,22 @@ export default function OrderPage() {
     if (key) localStorage.setItem(key, JSON.stringify(updatedCart));
   }
 
+  // ✅ แก้ไขฟังก์ชันลดจำนวน: ถ้าเหลือ 1 กดแล้วจะเป็น 0 ให้ลบออกจาก Array ทันที
   function decreaseFromCart(item) {
     const menuId = item.menu_id ?? item.id;
-    const existingIndex = cart.findIndex((p) => (p.menu_id ?? p.id) === menuId);
+
+    // ใช้ findLastIndex เพื่อลบตัวล่าสุดที่เพิ่มเข้าไป (กรณีมีหลาย Note จะได้ลบตัวท้ายสุดก่อน)
+    // หรือถ้าต้องการลบตัวแรกที่เจอให้ใช้ findIndex เหมือนเดิมก็ได้ครับ
+    const existingIndex = cart.findLastIndex((p) => (p.menu_id ?? p.id) === menuId);
+
     if (existingIndex > -1) {
       let updatedCart = [...cart];
       if (updatedCart[existingIndex].qty > 1) {
         updatedCart[existingIndex].qty -= 1;
-      } else { updatedCart.splice(existingIndex, 1); }
+      } else {
+        // ถ้าเหลือ 1 แล้วกดลด -> ลบออกจากตะกร้า
+        updatedCart.splice(existingIndex, 1);
+      }
       setCart(updatedCart);
 
       const key = getCartKey();
@@ -174,7 +177,6 @@ export default function OrderPage() {
 
   const totalCartItems = cart.reduce((sum, item) => sum + item.qty, 0);
 
-  // ✅ จุดแก้ไข 2: ส่ง customerPhone ต่อไปที่ Cart URL
   const cartUrl = orderType === 'takeout'
     ? `/cart?type=takeout&customerName=${encodeURIComponent(customerName || '')}&customerPhone=${encodeURIComponent(customerPhone || '')}`
     : `/cart?table=${selectedTable}`;
@@ -183,7 +185,6 @@ export default function OrderPage() {
     <SidebarProvider>
       <AppSidebar />
       <SidebarInset>
-        {/* Header */}
         <header className="sticky top-0 z-10 flex h-16 items-center justify-between px-6 border-b 
             bg-white/95 backdrop-blur shadow-sm
             dark:bg-black/95 dark:border-zinc-900 dark:shadow-none"
@@ -192,10 +193,9 @@ export default function OrderPage() {
             <SidebarTrigger />
             <div>
               <h1 className="text-sm font-bold text-zinc-900 dark:text-zinc-100">สั่งอาหาร</h1>
-              {/* แสดงชื่อลูกค้าและเบอร์โทร */}
               <p className="text-xs text-gray-500 dark:text-zinc-500">
                 {orderType === 'takeout'
-                  ? `Takeout: ${customerName || 'ลูกค้าทั่วไป'} ${customerPhone ? `(${customerPhone})` : ''}`
+                  ? `สั่งกลับบ้าน: ${customerName || 'ลูกค้าทั่วไป'} ${customerPhone ? `(${customerPhone})` : ''}`
                   : `โต๊ะ: ${selectedTable || "-"}`
                 }
               </p>
@@ -218,10 +218,8 @@ export default function OrderPage() {
           </Button>
         </header>
 
-        {/* Main Content */}
         <main className="p-6 bg-gray-50/50 min-h-[calc(100vh-4rem)] flex flex-col gap-6 dark:bg-black">
 
-          {/* Search & Filter */}
           <div className="flex flex-col md:flex-row items-center gap-4 w-full bg-white p-4 rounded-xl shadow-sm border border-gray-100 dark:bg-black dark:border-zinc-800">
             <div className="relative flex-1 w-full">
               <Search className="absolute left-3 top-2.5 h-4 w-4 text-gray-400 dark:text-zinc-600" />
@@ -248,7 +246,6 @@ export default function OrderPage() {
             </div>
           </div>
 
-          {/* Menu Grid */}
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
             {filteredMenus.length === 0 ? (
               <div className="col-span-full flex flex-col items-center justify-center py-12 text-gray-400 dark:text-zinc-800">
@@ -305,32 +302,45 @@ export default function OrderPage() {
                         </span>
 
                         <div onClick={(e) => e.stopPropagation()}>
-                          {isReadyType && qtyInCart > 0 ? (
+                          {/* ✅ แก้ไขเงื่อนไข: ถ้ามีในตะกร้า (qtyInCart > 0) ให้แสดงปุ่ม ลบ/เพิ่ม เสมอ ไม่ว่าประเภทไหน */}
+                          {qtyInCart > 0 ? (
                             <div className="flex items-center bg-gray-100 rounded-full p-1 h-8 shadow-inner dark:bg-zinc-900 dark:border dark:border-zinc-800">
                               <Button
                                 size="icon"
                                 className="h-6 w-6 rounded-full bg-white text-gray-700 shadow-sm hover:bg-red-50 hover:text-red-600 dark:bg-zinc-800 dark:text-zinc-300 dark:hover:bg-red-950/50 dark:hover:text-red-400"
                                 onClick={() => decreaseFromCart(menu)}
                               >
-                                <Minus className="h-3 w-3" />
+                                {/* ถ้าเหลือ 1 ให้แสดงรูปถังขยะ ถ้ามากกว่า 1 แสดงเครื่องหมายลบ */}
+                                {qtyInCart === 1 ? <Trash2 className="h-3 w-3" /> : <Minus className="h-3 w-3" />}
                               </Button>
+
                               <span className="w-8 text-center text-sm font-bold text-gray-800 dark:text-zinc-50">{qtyInCart}</span>
+
                               <Button
                                 size="icon"
                                 className="h-6 w-6 rounded-full bg-orange-600 text-white shadow-sm hover:bg-orange-700 dark:bg-orange-700 dark:hover:bg-orange-600"
-                                onClick={() => addToCart(menu, "", 1)}
+                                onClick={() => {
+                                  // ถ้าเป็น ready ให้เพิ่มเลย ถ้าเป็น custom ให้เปิด Dialog
+                                  if (isReadyType) {
+                                    addToCart(menu, "", 1);
+                                  } else {
+                                    setSelectedMenu(menu);
+                                    setNote("");
+                                    setQuantity(1);
+                                    setShowDialog(true);
+                                  }
+                                }}
                               >
                                 <Plus className="h-3 w-3" />
                               </Button>
                             </div>
                           ) : (
+                            // ถ้ายังไม่มีในตะกร้า แสดงปุ่ม + ใหญ่
                             <Button
                               size="icon"
                               className={`h-8 w-8 rounded-full transition-colors 
-                                ${!isReadyType && qtyInCart > 0
-                                  ? "bg-orange-600 text-white hover:bg-orange-700 ring-2 ring-orange-100 dark:bg-orange-700 dark:ring-orange-950"
-                                  : "bg-orange-100 text-orange-600 hover:bg-orange-600 hover:text-white dark:bg-orange-950/30 dark:text-orange-400 dark:hover:bg-orange-700 dark:hover:text-white"
-                                }`}
+                                bg-orange-100 text-orange-600 hover:bg-orange-600 hover:text-white dark:bg-orange-950/30 dark:text-orange-400 dark:hover:bg-orange-700 dark:hover:text-white
+                              `}
                               onClick={() => {
                                 if (isReadyType) { addToCart(menu, "", 1); }
                                 else {
@@ -371,7 +381,6 @@ export default function OrderPage() {
                 <Label htmlFor="note" className="text-gray-700 dark:text-zinc-300">รายละเอียดเพิ่มเติม (ถ้ามี)</Label>
                 <Input
                   id="note"
-                  placeholder="เช่น ไม่ใส่ผัก, เผ็ดน้อย"
                   value={note}
                   onChange={(e) => setNote(e.target.value)}
                   className="bg-gray-50 border-gray-200 dark:bg-zinc-900 dark:border-zinc-800 dark:text-zinc-50 dark:placeholder:text-zinc-600"
