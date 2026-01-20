@@ -83,9 +83,6 @@ export default function LoginPage() {
           <CardTitle className="text-3xl font-bold tracking-tight text-gray-900 dark:text-white">
             เข้าสู่ระบบ
           </CardTitle>
-          <CardDescription className="text-gray-500 dark:text-zinc-500">
-            กรอกอีเมลและรหัสผ่านเพื่อเข้าใช้งาน
-          </CardDescription>
         </CardHeader>
 
         <form onSubmit={handleLogin}>
@@ -105,7 +102,6 @@ export default function LoginPage() {
                 <Input
                   id="email"
                   type="email"
-                  placeholder="name@example.com"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   className="pl-10 h-12 border-gray-300 dark:bg-black dark:border-zinc-800 dark:text-white dark:placeholder:text-zinc-700 focus-visible:ring-gray-400 dark:focus-visible:ring-white transition-all"
@@ -124,7 +120,6 @@ export default function LoginPage() {
                 <Input
                   id="password"
                   type={showPassword ? "text" : "password"}
-                  placeholder="••••••••"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   className="pl-10 pr-10 h-12 border-gray-300 dark:bg-black dark:border-zinc-800 dark:text-white dark:placeholder:text-zinc-700 focus-visible:ring-gray-400 dark:focus-visible:ring-white transition-all"

@@ -449,11 +449,11 @@ export default function TableStatusDashboard() {
             <div className="py-4 space-y-4">
               <div className="space-y-2">
                 <Label className="dark:text-zinc-300">ชื่อลูกค้า<span className="text-red-500">*</span></Label>
-                <Input type="text" placeholder="คุณลูกค้า A" value={takeoutName} onChange={(e) => setTakeoutName(e.target.value)} autoFocus />
+                <Input type="text" value={takeoutName} onChange={(e) => setTakeoutName(e.target.value)} autoFocus />
               </div>
               <div className="space-y-2">
                 <Label className="dark:text-zinc-300">เบอร์โทรศัพท์</Label>
-                <Input type="tel" placeholder="0123456789" value={takeoutPhone} onChange={(e) => setTakeoutPhone(e.target.value)} onKeyDown={(e) => e.key === "Enter" && handleConfirmTakeout()} />
+                <Input type="tel" value={takeoutPhone} onChange={(e) => setTakeoutPhone(e.target.value)} onKeyDown={(e) => e.key === "Enter" && handleConfirmTakeout()} />
               </div>
             </div>
             <DialogFooter>
