@@ -2,15 +2,12 @@
 
 import { useState, useEffect, useMemo, useRef } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
-import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card";
+import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import {
   ArrowLeft,
   Timer,
   RefreshCcw,
-  CheckCircle2,
-  ScanLine,
   Smartphone,
   UploadCloud,
   Trash2,
@@ -194,6 +191,8 @@ export default function PaymentPage() {
     }
   };
 
+  const BRAND_COLOR = "#FF5722"; 
+
   return (
     <div className="min-h-screen bg-[#F8FAFC] flex flex-col items-center py-6 px-4 dark:bg-black">
 
@@ -202,14 +201,14 @@ export default function PaymentPage() {
           <ArrowLeft className="h-5 w-5 text-slate-600 dark:text-zinc-300" />
         </Button>
         <h1 className="text-lg font-semibold text-slate-700 dark:text-zinc-100">ชำระเงิน</h1>
-        <div className="w-10" /> 
+        <div className="w-10" />
       </div>
 
       <Card className="w-full max-w-md border-0 shadow-xl shadow-slate-200/60 rounded-3xl overflow-hidden bg-white dark:bg-zinc-900 dark:shadow-none">
 
-        <div className="relative bg-gradient-to-b from-blue-50 to-white pt-8 pb-4 px-6 text-center dark:from-blue-900/20 dark:to-zinc-900">
-          <div className="inline-flex items-center gap-2 px-4 py-1.5 bg-white border border-blue-100 rounded-full shadow-sm mb-4 dark:bg-zinc-800 dark:border-zinc-700">
-            <Receipt className="w-4 h-4 text-blue-500" />
+        <div className="relative bg-gradient-to-b from-[#FF5722]/10 to-white pt-8 pb-4 px-6 text-center dark:from-[#FF5722]/20 dark:to-zinc-900">
+          <div className="inline-flex items-center gap-2 px-4 py-1.5 bg-white border border-[#FF5722]/20 rounded-full shadow-sm mb-4 dark:bg-zinc-800 dark:border-zinc-700">
+            <Receipt className="w-4 h-4" style={{ color: BRAND_COLOR }} />
             <span className="text-sm font-medium text-slate-600 dark:text-zinc-300">
               โต๊ะ {tableId} {relatedTables.length > 0 && `(+${relatedTables.join(",")})`}
             </span>
@@ -223,7 +222,8 @@ export default function PaymentPage() {
 
           {remarkParam && (
             <div className="mt-4 flex justify-center">
-              <div className="bg-orange-50 text-orange-600 px-3 py-1.5 rounded-lg text-xs font-medium flex items-center gap-2 border border-orange-100 dark:bg-orange-900/20 dark:border-orange-800 dark:text-orange-400">
+              {/* ใช้สีส้มอ่อนๆ สำหรับ Remark ให้เข้ากับธีม */}
+              <div className="bg-[#FF5722]/10 text-[#FF5722] px-3 py-1.5 rounded-lg text-xs font-medium flex items-center gap-2 border border-[#FF5722]/20 dark:bg-[#FF5722]/20 dark:border-[#FF5722]/30">
                 <MessageSquare className="w-3.5 h-3.5" />
                 {remarkParam}
               </div>
@@ -235,7 +235,7 @@ export default function PaymentPage() {
 
           <div className="bg-white rounded-2xl border border-slate-100 p-4 shadow-sm flex flex-col items-center gap-3 dark:bg-zinc-800/50 dark:border-zinc-700">
             <div className="flex items-center gap-2 text-sm font-medium text-slate-600 dark:text-zinc-300 w-full px-2">
-              <QrCode className="w-4 h-4 text-blue-500" />
+              <QrCode className="w-4 h-4" style={{ color: BRAND_COLOR }} />
               <span>สแกน QR PromptPay</span>
               {qrCode && timeLeft > 0 && (
                 <span className={`ml-auto text-xs font-mono flex items-center gap-1 ${timeLeft < 60 ? 'text-red-500' : 'text-slate-400'}`}>
@@ -277,13 +277,14 @@ export default function PaymentPage() {
             ) : (
               <div
                 onClick={() => fileInputRef.current?.click()}
-                className="w-full h-32 border-2 border-dashed border-slate-200 rounded-2xl flex flex-col items-center justify-center cursor-pointer bg-slate-50/50 hover:bg-blue-50 hover:border-blue-300 transition-all group dark:bg-zinc-800/50 dark:border-zinc-700 dark:hover:bg-zinc-800"
+                className="w-full h-32 border-2 border-dashed border-slate-200 rounded-2xl flex flex-col items-center justify-center cursor-pointer bg-slate-50/50 hover:bg-[#FF5722]/5 hover:border-[#FF5722]/50 transition-all group dark:bg-zinc-800/50 dark:border-zinc-700 dark:hover:bg-zinc-800"
               >
                 <input type="file" accept="image/*" onChange={handleFileChange} ref={fileInputRef} className="hidden" />
                 <div className="w-10 h-10 rounded-full bg-white flex items-center justify-center shadow-sm mb-2 group-hover:scale-110 transition-transform dark:bg-zinc-700">
-                  <UploadCloud className="w-5 h-5 text-blue-500" />
+                  <UploadCloud className="w-5 h-5" style={{ color: BRAND_COLOR }} />
                 </div>
-                <p className="text-xs text-slate-500 font-medium group-hover:text-blue-600 dark:text-zinc-400">
+                {/* Text เปลี่ยนสีเมื่อ Hover */}
+                <p className="text-xs text-slate-500 font-medium group-hover:text-[#FF5722] dark:text-zinc-400 transition-colors">
                   แตะเพื่อแนบสลิป
                 </p>
               </div>
@@ -296,7 +297,11 @@ export default function PaymentPage() {
           <Button
             onClick={completePayment}
             disabled={loading || !qrCode || !receiptImage}
-            className="w-full h-12 text-base font-semibold rounded-xl bg-blue-600 hover:bg-blue-700 shadow-lg shadow-blue-500/20 disabled:opacity-50 disabled:shadow-none transition-all active:scale-[0.98]"
+            className="w-full h-12 text-base font-semibold rounded-xl text-white shadow-lg transition-all active:scale-[0.98] disabled:opacity-50 disabled:shadow-none"
+            style={{
+              backgroundColor: BRAND_COLOR,
+              boxShadow: `0 10px 15px -3px ${BRAND_COLOR}40`
+            }}
           >
             {loading ? "กำลังบันทึก..." : "ยืนยันการชำระเงิน"}
           </Button>
