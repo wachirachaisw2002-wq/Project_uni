@@ -3,7 +3,7 @@
 
 import { useState, useEffect, useMemo, useRef } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
-import { Card, CardContent, CardFooter } from "@/components/ui/card";
+import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -15,7 +15,10 @@ import {
   Smartphone,
   UploadCloud,
   Trash2,
-  MessageSquare // ✅ เพิ่มไอคอน
+  MessageSquare,
+  Receipt,
+  ImagePlus,
+  QrCode
 } from "lucide-react";
 
 export default function PaymentPage() {
@@ -23,11 +26,10 @@ export default function PaymentPage() {
   const router = useRouter();
   const fileInputRef = useRef(null);
 
-  // ✅ 1. รับค่าจาก Params
+  // --- Logic เดิม (ไม่เปลี่ยนแปลง) ---
   const tableParam = searchParams.get("table_id");
   const amountParam = searchParams.get("amount") || "0";
   const relatedTablesRaw = searchParams.get("related") || "";
-  // ✅ รับค่า remark ที่ส่งมาจากหน้า Billing
   const remarkParam = searchParams.get("remark") || "";
 
   const tableId = useMemo(() => {
@@ -142,7 +144,6 @@ export default function PaymentPage() {
     return Object.values(summary);
   };
 
-  // ✅ บันทึกบิลลงฐานข้อมูล (เพิ่มการส่ง remark)
   const createBillRecord = async (items) => {
     const formData = new FormData();
     formData.append("table_id", String(tableId));
@@ -153,10 +154,7 @@ export default function PaymentPage() {
     formData.append("closed_by_name", currentEmployee?.name ?? "");
     formData.append("cash_received", String(amount));
     formData.append("change_amount", "0");
-
-    // ✅ ส่ง remark ไปบันทึกด้วย
     if (remarkParam) formData.append("remark", remarkParam);
-
     if (slipFile) formData.append("slip_image", slipFile);
 
     const res = await fetch("/api/bills", { method: "POST", body: formData });
@@ -198,94 +196,142 @@ export default function PaymentPage() {
     }
   };
 
+  // --- UI Section ---
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center p-4 dark:bg-black">
-      <div className="w-full max-w-md mb-4">
-        <Button variant="ghost" onClick={() => router.back()} className="text-gray-500 dark:text-zinc-400">
-          <ArrowLeft className="mr-2 h-4 w-4" /> ย้อนกลับ
+    <div className="min-h-screen bg-[#F8FAFC] flex flex-col items-center py-6 px-4 dark:bg-black">
+
+      {/* Navbar แบบง่าย */}
+      <div className="w-full max-w-md flex items-center justify-between mb-6">
+        <Button variant="ghost" size="icon" onClick={() => router.back()} className="rounded-full hover:bg-white hover:shadow-sm">
+          <ArrowLeft className="h-5 w-5 text-slate-600 dark:text-zinc-300" />
         </Button>
+        <h1 className="text-lg font-semibold text-slate-700 dark:text-zinc-100">ชำระเงิน</h1>
+        <div className="w-10" /> {/* Spacer */}
       </div>
 
-      <Card className="w-full max-w-md shadow-xl border-none overflow-hidden dark:bg-zinc-900">
-        <div className="bg-blue-600 p-6 text-center text-white dark:bg-blue-800">
-          <ScanLine className="w-10 h-10 mx-auto mb-2 opacity-90" />
-          <h1 className="text-2xl font-bold">สแกนจ่ายเงิน</h1>
-          <p className="text-blue-100 text-sm">โต๊ะ {tableId} {relatedTables.length > 0 && `(+${relatedTables.join(",")})`}</p>
+      <Card className="w-full max-w-md border-0 shadow-xl shadow-slate-200/60 rounded-3xl overflow-hidden bg-white dark:bg-zinc-900 dark:shadow-none">
+
+        {/* ส่วนแสดงยอดเงิน (Hero Section) */}
+        <div className="relative bg-gradient-to-b from-blue-50 to-white pt-8 pb-4 px-6 text-center dark:from-blue-900/20 dark:to-zinc-900">
+          {/* Table Info Badge */}
+          <div className="inline-flex items-center gap-2 px-4 py-1.5 bg-white border border-blue-100 rounded-full shadow-sm mb-4 dark:bg-zinc-800 dark:border-zinc-700">
+            <Receipt className="w-4 h-4 text-blue-500" />
+            <span className="text-sm font-medium text-slate-600 dark:text-zinc-300">
+              โต๊ะ {tableId} {relatedTables.length > 0 && `(+${relatedTables.join(",")})`}
+            </span>
+          </div>
+
+          <div className="mb-1 text-slate-500 text-sm dark:text-zinc-400">ยอดชำระทั้งหมด</div>
+          <div className="text-5xl font-bold text-slate-800 tracking-tight dark:text-white">
+            {Number(amount).toLocaleString()}
+            <span className="text-xl font-medium text-slate-400 ml-2">฿</span>
+          </div>
+
+          {/* Remark */}
+          {remarkParam && (
+            <div className="mt-4 flex justify-center">
+              <div className="bg-orange-50 text-orange-600 px-3 py-1.5 rounded-lg text-xs font-medium flex items-center gap-2 border border-orange-100 dark:bg-orange-900/20 dark:border-orange-800 dark:text-orange-400">
+                <MessageSquare className="w-3.5 h-3.5" />
+                {remarkParam}
+              </div>
+            </div>
+          )}
         </div>
 
-        <CardContent className="pt-8 px-8 pb-6 space-y-6">
-          <div className="text-center space-y-1">
-            <p className="text-gray-500 text-sm">ยอดที่ต้องชำระ</p>
-            <div className="text-4xl font-black text-gray-800 dark:text-white">
-              {Number(amount).toLocaleString()} <span className="text-lg font-normal text-gray-400">บาท</span>
+        <CardContent className="px-6 pb-6 space-y-6">
+
+          {/* QR Code Section */}
+          <div className="bg-white rounded-2xl border border-slate-100 p-4 shadow-sm flex flex-col items-center gap-3 dark:bg-zinc-800/50 dark:border-zinc-700">
+            <div className="flex items-center gap-2 text-sm font-medium text-slate-600 dark:text-zinc-300 w-full px-2">
+              <QrCode className="w-4 h-4 text-blue-500" />
+              <span>สแกน QR PromptPay</span>
+              {qrCode && timeLeft > 0 && (
+                <span className={`ml-auto text-xs font-mono flex items-center gap-1 ${timeLeft < 60 ? 'text-red-500' : 'text-slate-400'}`}>
+                  <Timer className="w-3 h-3" />
+                  {formatTime(timeLeft)}
+                </span>
+              )}
             </div>
-            {/* ✅ แสดง Remark ให้เห็น (ถ้ามี) */}
-            {remarkParam && (
-              <div className="flex items-center justify-center gap-1.5 text-xs text-orange-600 dark:text-orange-400 mt-2 bg-orange-50 dark:bg-orange-900/20 py-1 px-3 rounded-full w-fit mx-auto">
-                <MessageSquare className="w-3 h-3" />
-                <span>หมายเหตุ: {remarkParam}</span>
-              </div>
-            )}
+
+            <div className="relative group w-full aspect-square max-w-[240px] bg-white rounded-xl border-2 border-slate-100 flex items-center justify-center overflow-hidden dark:bg-zinc-900 dark:border-zinc-700">
+              {qrCode ? (
+                <>
+                  <img src={qrCode} alt="QR" className="w-full h-full object-contain p-2 mix-blend-multiply dark:mix-blend-normal" />
+                  {/* Scan Line Animation (Optional Decoration) */}
+                  <div className="absolute top-0 left-0 w-full h-1 bg-blue-500/30 shadow-[0_0_15px_rgba(59,130,246,0.5)] animate-[scan_2s_ease-in-out_infinite]" />
+                </>
+              ) : (
+                <div className="flex flex-col items-center gap-3 text-slate-400">
+                  <RefreshCcw className={`w-8 h-8 ${loading ? 'animate-spin' : ''}`} />
+                  <Button size="sm" variant="outline" onClick={() => generateQR(amount)} className="text-xs h-8">
+                    โหลด QR ใหม่
+                  </Button>
+                </div>
+              )}
+            </div>
           </div>
 
-          <div className="relative mx-auto w-64 h-64 bg-white border-2 border-gray-100 rounded-xl flex items-center justify-center overflow-hidden dark:bg-zinc-800 dark:border-zinc-700">
-            {qrCode ? (
-              <img src={qrCode} alt="QR" className="w-full h-full object-contain p-2" />
-            ) : (
-              <div className="flex flex-col items-center gap-2">
-                <RefreshCcw className={`w-8 h-8 text-gray-300 ${loading ? 'animate-spin' : ''}`} />
-                <Button size="sm" variant="ghost" onClick={() => generateQR(amount)}>สร้างใหม่</Button>
-              </div>
-            )}
-          </div>
+          {/* Upload Slip Section */}
+          <div>
+            <h3 className="text-sm font-medium text-slate-700 mb-3 flex items-center gap-2 dark:text-zinc-300">
+              <ImagePlus className="w-4 h-4" />
+              หลักฐานการโอน
+            </h3>
 
-          <div className="flex justify-center">
-            {qrCode && timeLeft > 0 && (
-              <Badge variant="outline" className={`px-3 py-1 gap-2 ${timeLeft < 30 ? 'text-red-500 border-red-200' : 'text-zinc-500'}`}>
-                <Timer className="w-4 h-4" /> {formatTime(timeLeft)}
-              </Badge>
-            )}
-          </div>
-
-          <div className="pt-4 border-t dark:border-zinc-800">
-            <h3 className="text-sm font-bold mb-3 dark:text-zinc-300 uppercase tracking-tighter">หลักฐานการโอนเงิน</h3>
             {receiptImage ? (
-              <div className="relative w-full h-48 border-2 border-green-500 rounded-xl overflow-hidden">
+              <div className="relative w-full h-40 rounded-2xl overflow-hidden border border-slate-200 group dark:border-zinc-700">
                 <img src={receiptImage} alt="Receipt" className="w-full h-full object-cover" />
-                <Button variant="destructive" size="icon" onClick={() => { setReceiptImage(null); setSlipFile(null); }} className="absolute top-2 right-2 rounded-full">
-                  <Trash2 className="w-4 h-4" />
-                </Button>
+                <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                  <Button variant="destructive" size="sm" onClick={() => { setReceiptImage(null); setSlipFile(null); }} className="rounded-full shadow-lg">
+                    <Trash2 className="w-4 h-4 mr-2" /> ลบรูปภาพ
+                  </Button>
+                </div>
               </div>
             ) : (
               <div
-                className="p-8 border-2 border-dashed rounded-xl flex flex-col items-center justify-center cursor-pointer hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors"
                 onClick={() => fileInputRef.current?.click()}
+                className="w-full h-32 border-2 border-dashed border-slate-200 rounded-2xl flex flex-col items-center justify-center cursor-pointer bg-slate-50/50 hover:bg-blue-50 hover:border-blue-300 transition-all group dark:bg-zinc-800/50 dark:border-zinc-700 dark:hover:bg-zinc-800"
               >
                 <input type="file" accept="image/*" onChange={handleFileChange} ref={fileInputRef} className="hidden" />
-                <UploadCloud className="w-8 h-8 text-blue-500 mb-2" />
-                <p className="text-sm font-bold dark:text-zinc-400">แตะเพื่ออัปโหลดสลิป</p>
+                <div className="w-10 h-10 rounded-full bg-white flex items-center justify-center shadow-sm mb-2 group-hover:scale-110 transition-transform dark:bg-zinc-700">
+                  <UploadCloud className="w-5 h-5 text-blue-500" />
+                </div>
+                <p className="text-xs text-slate-500 font-medium group-hover:text-blue-600 dark:text-zinc-400">
+                  แตะเพื่อแนบสลิป
+                </p>
               </div>
             )}
           </div>
+
         </CardContent>
 
-        <CardFooter className="flex-col gap-3 bg-gray-50/50 p-6 border-t dark:bg-zinc-900/50 dark:border-zinc-800">
+        <CardFooter className="flex flex-col bg-white border-t border-slate-50 p-6 pt-4 dark:bg-zinc-900 dark:border-zinc-800">
           <Button
-            className="w-full h-14 text-lg font-black rounded-2xl bg-blue-600 hover:bg-blue-700 shadow-lg shadow-blue-500/20"
             onClick={completePayment}
             disabled={loading || !qrCode || !receiptImage}
+            className="w-full h-12 text-base font-semibold rounded-xl bg-blue-600 hover:bg-blue-700 shadow-lg shadow-blue-500/20 disabled:opacity-50 disabled:shadow-none transition-all active:scale-[0.98]"
           >
-            {loading ? "กำลังดำเนินการ..." : <><CheckCircle2 className="mr-2 h-5 w-5" /> ยืนยันชำระเงิน</>}
+            {loading ? "กำลังบันทึก..." : "ยืนยันการชำระเงิน"}
           </Button>
-          {!receiptImage && <p className="text-[10px] text-red-500 font-bold">* จำเป็นต้องแนบหลักฐานการโอน</p>}
 
           {currentEmployee && (
-            <div className="flex items-center gap-2 text-[10px] text-zinc-500 uppercase font-bold">
-              <Smartphone className="w-3 h-3" /> ผู้รับเงิน: {currentEmployee.name}
+            <div className="mt-4 flex items-center justify-center gap-2 text-[11px] text-slate-400 font-medium bg-slate-50 py-1.5 px-3 rounded-full mx-auto dark:bg-zinc-800 dark:text-zinc-500">
+              <Smartphone className="w-3 h-3" />
+              พนักงาน: {currentEmployee.name}
             </div>
           )}
         </CardFooter>
       </Card>
+
+      {/* CSS Animation สำหรับเส้น Scan */}
+      <style jsx global>{`
+        @keyframes scan {
+          0% { top: 0%; opacity: 0; }
+          10% { opacity: 1; }
+          90% { opacity: 1; }
+          100% { top: 100%; opacity: 0; }
+        }
+      `}</style>
     </div>
   );
 }
