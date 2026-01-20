@@ -55,7 +55,6 @@ export async function PUT(request, { params }) {
       sql += `, password=?`;
       values.push(password);
     }
-    // --------------------------------------------------
 
     sql += ` WHERE employee_id = ?`;
     values.push(id);

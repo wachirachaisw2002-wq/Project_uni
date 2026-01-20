@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
 import pool from "@/lib/db";
-// import bcrypt from "bcrypt"; // แนะนำให้ใช้สำหรับการ hash password
 
 export async function GET() {
     try {
@@ -19,9 +18,6 @@ export async function POST(req) {
             email, password, position, employment_type, start_date, shift_availability, status, salary
         }
             = body;
-
-        // TODO: ควร Hash Password ตรงนี้ก่อนบันทึก (เช่นใช้ bcrypt)
-        // const hashedPassword = await bcrypt.hash(password, 10);
 
         const sql = `
       INSERT INTO employees (

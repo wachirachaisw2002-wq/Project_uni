@@ -9,8 +9,8 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "@/components/ui/table";
 import {
-  Loader2, LogIn, LogOut, Clock, CalendarDays,
-  History, Timer, MapPin, Camera
+  Loader2, LogIn, LogOut, CalendarDays,
+  History, Timer, MapPin, Camera, Clock
 } from "lucide-react";
 
 // --- 📍 พิกัดร้าน: เดอะพาเลซ ขอนแก่น ---
@@ -35,6 +35,8 @@ export default function AttendancePage() {
   const [photo, setPhoto] = useState(null);
 
   useEffect(() => {
+    // อัปเดตนาฬิกาทุกวินาที
+    setCurrentTime(new Date());
     const timer = setInterval(() => setCurrentTime(new Date()), 1000);
     return () => clearInterval(timer);
   }, []);
@@ -44,7 +46,12 @@ export default function AttendancePage() {
     if (!userId) { router.push("/"); return; }
 
     try {
-      const res = await fetch(`/api/attendance?userId=${userId}`);
+      // ✅ เพิ่ม cache: 'no-store' เพื่อไม่ให้จำค่าเดิม (แก้ปัญหาข้อมูลไม่อัปเดต)
+      const res = await fetch(`/api/attendance?userId=${userId}`, {
+        cache: 'no-store',
+        headers: { 'Pragma': 'no-cache' }
+      });
+
       if (!res.ok) throw new Error("Failed to fetch");
       const data = await res.json();
 
@@ -176,6 +183,8 @@ export default function AttendancePage() {
     }
 
     const action = isCheckedIn ? "check_out" : "check_in";
+    // ✅ ส่งเวลาปัจจุบันของ Client ไปด้วย เพื่อความแม่นยำ (ถ้า Backend รองรับ)
+    const clientTimestamp = new Date().toISOString();
 
     try {
       const res = await fetch("/api/attendance", {
@@ -186,7 +195,8 @@ export default function AttendancePage() {
           action,
           lat: locationData.lat,
           lng: locationData.lng,
-          photo: isCheckedIn ? null : photo
+          photo: isCheckedIn ? null : photo,
+          timestamp: clientTimestamp // ส่งเวลา
         }),
       });
 
@@ -217,13 +227,33 @@ export default function AttendancePage() {
     return `${hours} ชม. ${minutes} นาที`;
   };
 
+  // ✅ ฟังก์ชันจัดรูปแบบเวลา (หัวใจสำคัญของการแก้ปัญหา Timezone)
   const formatDateTime = (dateStr, type = 'time') => {
     if (!dateStr) return "-";
     const date = new Date(dateStr);
+    
+    // ตรวจสอบว่าวันที่ถูกต้องหรือไม่
+    if (isNaN(date.getTime())) return "-";
+
+    // ตั้งค่าให้แสดงผลเป็น Timezone ประเทศไทยเสมอ
+    const options = {
+      timeZone: 'Asia/Bangkok', 
+    };
+
     if (type === 'time') {
-      return date.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' });
+      return date.toLocaleTimeString('th-TH', { 
+        ...options,
+        hour: '2-digit', 
+        minute: '2-digit',
+        hour12: false // แสดงผลแบบ 24 ชม.
+      });
     }
-    return date.toLocaleDateString('th-TH', { day: 'numeric', month: 'short', year: '2-digit' });
+    return date.toLocaleDateString('th-TH', { 
+      ...options,
+      day: 'numeric', 
+      month: 'short', 
+      year: '2-digit' 
+    });
   };
 
   return (
@@ -244,7 +274,6 @@ export default function AttendancePage() {
         {/* 🔴 Main Content */}
         <main className="flex-1 overflow-y-auto p-2 sm:p-4 bg-zinc-50/30 dark:bg-black w-full">
 
-          {/* ✅ ย้าย Loading มาเช็คตรงนี้แทน เพื่อให้ Sidebar ยังคงแสดงอยู่ */}
           {isLoading ? (
             <div className="flex flex-col items-center justify-center h-[calc(100vh-5rem)] gap-4">
               <Loader2 className="h-10 w-10 animate-spin text-orange-600" />

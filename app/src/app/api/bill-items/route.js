@@ -15,10 +15,9 @@ export async function GET(req) {
       `
       SELECT
         bi.bill_item_id AS id,
-        bi.menu_id,             
-        /* ใช้ COALESCE ป้องกันกรณีเมนูถูกลบจากระบบแต่บิลยังอยู่ */
+        bi.menu_id,                     
         COALESCE(m.name, 'ไม่พบชื่อเมนู') AS menu_name, 
-        bi.qty AS quantity,      /* แปลงจาก DB (qty) ให้ตรงกับ Frontend (quantity) */
+        bi.qty AS quantity, 
         bi.price,
         (bi.qty * bi.price) AS total
       FROM bill_items bi

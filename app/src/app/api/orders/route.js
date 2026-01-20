@@ -3,7 +3,7 @@ import pool from "@/lib/db";
 
 export const dynamic = "force-dynamic";
 
-async function updateTableAfterOrder(conn, tableNum, mode /* 'start' | 'add' */) {
+async function updateTableAfterOrder(conn, tableNum, mode) {
   const setSql =
     mode === "start"
       ? "status = 'มีลูกค้า', order_count = 1"

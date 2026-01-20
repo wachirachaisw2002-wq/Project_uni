@@ -84,7 +84,6 @@ export async function PATCH(request) {
       );
       return NextResponse.json({ success: true });
     }
-    // ---------------------------------------------
 
     if (action === "start") {
       await connection.query(

@@ -1,5 +1,14 @@
 import { NextResponse } from "next/server";
-import pool from "@/lib/db";
+import pool from "@/lib/db"; // ✅ ตรวจสอบ path นี้ให้ตรงกับของเดิมของคุณ
+
+// ฟังก์ชันแปลงเวลาเป็น Local Time (ไทย) สำหรับบันทึกลง MySQL
+// เพื่อแก้ปัญหา Server เป็น UTC แล้วบันทึกเวลาผิด
+const getThaiDate = (dateObj) => {
+    // เพิ่ม 7 ชั่วโมงให้เวลา UTC
+    const thaiTime = new Date(dateObj.getTime() + (7 * 60 * 60 * 1000));
+    // ตัดตัว Z ออกแล้วเปลี่ยน T เป็น Space จะได้ format: YYYY-MM-DD HH:mm:ss
+    return thaiTime.toISOString().slice(0, 19).replace('T', ' ');
+};
 
 export async function GET(request) {
     try {
@@ -43,11 +52,14 @@ export async function POST(request) {
     try {
         const body = await request.json();
 
-        const { userId, action, lat, lng, photo } = body;
+        const { userId, action, lat, lng, photo, timestamp } = body;
 
         if (!userId || !action) {
             return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
         }
+
+        const dateObj = timestamp ? new Date(timestamp) : new Date();
+        const recordTime = getThaiDate(dateObj);
 
         if (action === "check_in") {
             const [existing] = await pool.query(
@@ -60,8 +72,8 @@ export async function POST(request) {
             }
 
             await pool.query(
-                "INSERT INTO employee_workingtime (employee_id, check_in, work_date, latitude, longitude, check_in_photo) VALUES (?, NOW(), CURDATE(), ?, ?, ?)",
-                [userId, lat, lng, photo]
+                "INSERT INTO employee_workingtime (employee_id, check_in, work_date, latitude, longitude, check_in_photo) VALUES (?, ?, ?, ?, ?, ?)",
+                [userId, recordTime, recordTime, lat, lng, photo]
             );
 
             return NextResponse.json({ message: "เข้างานสำเร็จ" });
@@ -69,8 +81,8 @@ export async function POST(request) {
         } else if (action === "check_out") {
 
             const [result] = await pool.query(
-                "UPDATE employee_workingtime SET check_out = NOW() WHERE employee_id = ? AND check_out IS NULL",
-                [userId]
+                "UPDATE employee_workingtime SET check_out = ? WHERE employee_id = ? AND check_out IS NULL",
+                [recordTime, userId]
             );
 
             if (result.affectedRows === 0) {

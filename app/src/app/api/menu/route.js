@@ -5,12 +5,10 @@ import pool from "@/lib/db";
 
 export async function GET() {
   try {
-    // ✅ เพิ่ม available ในการ Select
     const [rows] = await pool.query(
       "SELECT menu_id, name, price, category, image, type, available FROM menus ORDER BY category ASC, name ASC"
     );
 
-    // ✅ (Optional) แปลงค่า 1/0 จาก Database ให้เป็น true/false เพื่อให้ Frontend ใช้ง่าย
     const menus = rows.map(menu => ({
       ...menu,
       available: menu.available === 1 || menu.available === true
@@ -26,7 +24,6 @@ export async function GET() {
 export async function POST(request) {
   try {
     const body = await request.json();
-    // ✅ รับค่า available จาก body
     const { name, price, category, image, type, available } = body;
 
     if (!name || price === undefined || price === null || !category) {
@@ -37,10 +34,8 @@ export async function POST(request) {
     }
 
     const menuType = type || 'cooked';
-    // ✅ กำหนด Default เป็น true ถ้าไม่ได้ส่งมา
     const isAvailable = available !== false;
 
-    // ✅ เพิ่ม available ลงในคำสั่ง INSERT
     const [result] = await pool.query(
       "INSERT INTO menus (name, price, category, image, type, available) VALUES (?, ?, ?, ?, ?, ?)",
       [name, price, category, image || "", menuType, isAvailable]
@@ -54,7 +49,7 @@ export async function POST(request) {
         category,
         image: image || "",
         type: menuType,
-        available: isAvailable, // ✅ ส่งค่ากลับไป
+        available: isAvailable, 
       },
       { status: 201 }
     );
@@ -68,7 +63,6 @@ export async function PUT(request) {
   try {
     const body = await request.json();
     const menu_id = body.menu_id ?? body.id;
-    // ✅ รับค่า available จาก body
     const { name, price, category, image, type, available } = body;
 
     if (!menu_id || !name || price === undefined || price === null || !category) {
@@ -80,7 +74,6 @@ export async function PUT(request) {
 
     const menuType = type || 'cooked';
 
-    // ✅ เพิ่ม available ลงในคำสั่ง UPDATE
     const [result] = await pool.query(
       "UPDATE menus SET name=?, price=?, category=?, image=?, type=?, available=? WHERE menu_id=?",
       [name, price, category, image || "", menuType, available, menu_id]
@@ -97,7 +90,7 @@ export async function PUT(request) {
       category,
       image: image || "",
       type: menuType,
-      available, // ✅ ส่งค่ากลับไป
+      available, 
       message: "แก้ไขสำเร็จ"
     });
   } catch (error) {
