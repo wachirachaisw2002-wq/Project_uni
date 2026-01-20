@@ -40,18 +40,15 @@ export default function LoginPage() {
       const data = await res.json();
 
       if (res.ok) {
-        // 1. บันทึกข้อมูลลงเครื่อง
         localStorage.setItem("userId", data.id);
         localStorage.setItem("userPosition", data.position);
 
-        // 2. ✅ ตรวจสอบตำแหน่งเพื่อเปลี่ยนหน้า (Redirect Logic)
-        // ใช้ .trim() ป้องกันกรณีใน DB มีช่องว่างต่อท้าย
         const position = (data.position || "").trim();
 
         if (position === "พนักงานในครัว") {
-          router.push("/order-status"); // หรือ /orders-status-page-split ถ้าคุณใช้ชื่อนั้น
+          router.push("/order-status");
         } else {
-          router.push("/table"); // ตำแหน่งอื่นๆ (เจ้าของ, ผู้จัดการ, พนักงานทั่วไป) ไปหน้าโต๊ะ
+          router.push("/table"); 
         }
 
       } else {

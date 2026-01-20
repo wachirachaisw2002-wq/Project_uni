@@ -1,4 +1,3 @@
-// app/billing/page.jsx
 "use client";
 
 import { useEffect, useMemo, useState, Suspense } from "react";
@@ -26,10 +25,8 @@ import {
   CheckCircle2,
   User,
   XCircle
-  // ❌ ลบ MessageSquare ออก
 } from "lucide-react";
 
-// --- API Functions ---
 const adjustOrderQty = async (tableId, menuId, adjustQty, orderId = null) => {
   const body = {
     menu_id: menuId,
@@ -127,9 +124,6 @@ const createBill = async (billData) => {
   if (billData.orderType) formData.append("order_type", billData.orderType);
   if (billData.customerName) formData.append("customer_name", billData.customerName);
 
-  // ❌ ลบการส่ง remark ออก เพราะจะใช้ Auto Remark ที่ Backend แทน
-  // if (billData.remark) formData.append("remark", billData.remark);
-
   formData.append("items", JSON.stringify(billData.items));
   formData.append("total_price", billData.totalPrice);
   formData.append("payment_type", billData.paymentType);
@@ -174,9 +168,6 @@ function BillingContent() {
   const [paymentStep, setPaymentStep] = useState('select');
   const [cashReceived, setCashReceived] = useState("");
   const [changeAmount, setChangeAmount] = useState(0);
-
-  // ❌ ลบ State remark ออก
-  // const [remark, setRemark] = useState("");
 
   useEffect(() => {
     if (!tableId && type !== 'takeout') {
@@ -268,7 +259,6 @@ function BillingContent() {
         closedByName: currentEmployee?.name,
         cashReceived: parseFloat(cashReceived),
         changeAmount: changeAmount,
-        // remark: remark  // ❌ ไม่ต้องส่ง remark
       });
 
       if (tableId) {
@@ -292,9 +282,6 @@ function BillingContent() {
 
     params.append('amount', String(totalPrice));
     if (relatedTables.length > 0) params.append('related', relatedTables.join(","));
-
-    // ❌ ไม่ต้องส่ง remark ไปหน้าโอนเงิน
-    // if (remark) params.append('remark', remark);
 
     router.push(`/payment?${params.toString()}`);
   };
@@ -442,7 +429,6 @@ function BillingContent() {
 
             {paymentStep === 'select' ? (
               <div className="space-y-4 pt-2">
-                {/* ❌ ลบช่องกรอกหมายเหตุออก */}
                 <div className="grid grid-cols-2 gap-4">
                   <button onClick={() => setPaymentStep('cash_input')} className="p-8 border-2 rounded-[1.5rem] flex flex-col items-center gap-3 hover:border-green-500 hover:bg-green-50/50 dark:border-zinc-800 dark:hover:bg-green-500/10 transition-all group">
                     <Banknote className="w-12 h-12 text-green-500 group-hover:scale-110 transition-transform" />

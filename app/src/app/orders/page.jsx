@@ -9,7 +9,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-// ✅ Import Loader2 เพิ่ม
 import { Search, ShoppingCart, Plus, Minus, UtensilsCrossed, Trash2, Ban, Loader2 } from "lucide-react";
 import {
   Select,
@@ -31,7 +30,6 @@ export default function OrderPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
-  // --- 1. รับค่า Params ---
   const tableParam = useMemo(
     () => searchParams.get("table") ?? searchParams.get("table_id"),
     [searchParams]
@@ -46,7 +44,7 @@ export default function OrderPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [cart, setCart] = useState([]);
   const [selectedCategory, setSelectedCategory] = useState("ทั้งหมด");
-  const [isLoading, setIsLoading] = useState(true); // ✅ เพิ่ม Loading State
+  const [isLoading, setIsLoading] = useState(true);
 
   const [showDialog, setShowDialog] = useState(false);
   const [note, setNote] = useState("");
@@ -92,7 +90,7 @@ export default function OrderPage() {
       } catch (error) {
         console.error(error);
       } finally {
-        setIsLoading(false); // ✅ ปิด Loading เมื่อโหลดเสร็จ
+        setIsLoading(false); 
       }
     }
     fetchMenus();
@@ -220,8 +218,6 @@ export default function OrderPage() {
         </header>
 
         <main className="p-6 bg-gray-50/50 min-h-[calc(100vh-4rem)] flex flex-col gap-6 dark:bg-black">
-
-          {/* ✅ ส่วน Loading State */}
           {isLoading ? (
             <div className="flex flex-col items-center justify-center h-[60vh] gap-4">
               <Loader2 className="h-10 w-10 animate-spin text-orange-600" />
@@ -274,7 +270,6 @@ export default function OrderPage() {
                           ${!isAvailable ? 'opacity-80 grayscale-[0.8] bg-gray-50 dark:bg-zinc-900/50' : 'hover:shadow-md'}
                         `}
                       >
-                        {/* Image Section */}
                         <div className="w-36 h-full flex-shrink-0 relative p-3">
                           <div className="w-full h-full relative overflow-hidden rounded-xl bg-gray-100 shadow-sm dark:bg-zinc-900">
                             {menu.image ? (
@@ -299,8 +294,6 @@ export default function OrderPage() {
                             )}
                           </div>
                         </div>
-
-                        {/* Content Section */}
                         <div className="flex flex-col justify-between flex-1 p-4 pl-1">
                           <div>
                             <div className="flex justify-between items-start">
@@ -394,7 +387,6 @@ export default function OrderPage() {
           )}
         </main>
 
-        {/* Dialog (Popup) */}
         <Dialog open={showDialog} onOpenChange={setShowDialog}>
           <DialogContent className="sm:max-w-md dark:bg-black dark:border-zinc-900">
             <DialogHeader>

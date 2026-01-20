@@ -71,9 +71,8 @@ const paymentData = [
   { name: "โอนเงิน/QR", value: 12500 },
 ];
 const totalPayment = paymentData.reduce((sum, item) => sum + item.value, 0);
-const PieCOLORS = ["#10b981", "#3b82f6"]; // Emerald & Blue
+const PieCOLORS = ["#10b981", "#3b82f6"]; 
 
-// Helper component for Growth Indicator
 const GrowthIndicator = ({ value, description }) => {
     const isPositive = value >= 0;
     const color = isPositive ? "text-emerald-600" : "text-red-600";
@@ -94,14 +93,12 @@ export default function Page() {
     <SidebarProvider>
       <AppSidebar />
       <SidebarInset>
-        {/* Header */}
         <header className="sticky top-0 z-10 flex h-16 shrink-0 items-center justify-between gap-2 border-b bg-white/95 backdrop-blur px-4">
           <div className="flex items-center gap-2">
             <SidebarTrigger className="-ml-1" />
             <h1 className="text-sm font-bold text-zinc-900 dark:text-zinc-100 truncate">สรุปยอดขายและ BI Dashboard</h1>
           </div>
-          
-          {/* Time Filter */}
+
           <Select value={timeRange} onValueChange={setTimeRange}>
             <SelectTrigger className="w-[180px] bg-white">
               <SelectValue placeholder="เลือกช่วงเวลา" />

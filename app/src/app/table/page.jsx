@@ -21,7 +21,7 @@ import {
   Bike,
   Clock,
   Phone,
-  Loader2 // Import Loader2
+  Loader2 
 } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import {
@@ -35,7 +35,6 @@ import {
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 
-// --- API Functions ---
 const fetchDashboardData = async () => {
   const res = await fetch("/api/tables", { cache: "no-store" });
   if (!res.ok) throw new Error("Failed to fetch data");
@@ -55,15 +54,13 @@ const updateTable = async (tableId, action, payload = {}) => {
 export default function TableStatusDashboard() {
   const [tables, setTables] = useState([]);
   const [activeTakeaways, setActiveTakeaways] = useState([]);
-  const [isLoading, setIsLoading] = useState(true); // เริ่มต้นเป็น true
+  const [isLoading, setIsLoading] = useState(true); 
   const router = useRouter();
 
-  // Modal States
   const [isMoveOpen, setIsMoveOpen] = useState(false);
   const [isMergeOpen, setIsMergeOpen] = useState(false);
   const [isTakeoutOpen, setIsTakeoutOpen] = useState(false);
 
-  // Data States
   const [selectedTable, setSelectedTable] = useState(null);
   const [targetTableId, setTargetTableId] = useState("");
   const [mergeTargetId, setMergeTargetId] = useState("");
@@ -84,7 +81,7 @@ export default function TableStatusDashboard() {
     } catch (error) {
       console.error("Error loading dashboard:", error);
     } finally {
-      setIsLoading(false); // ปิด Loading เมื่อโหลดเสร็จ
+      setIsLoading(false); 
     }
   };
 
@@ -107,7 +104,6 @@ export default function TableStatusDashboard() {
     }
   };
 
-  // --- Functions สำหรับ Takeout ---
   const handleOpenTakeoutModal = () => {
     setTakeoutName("");
     setTakeoutPhone("");
@@ -146,7 +142,6 @@ export default function TableStatusDashboard() {
     router.push(`/billing?${params.toString()}`);
   };
 
-  // --- Functions จัดการโต๊ะ ---
   const handleUnmerge = async (table) => {
     if (!confirm(`ต้องการแยก "โต๊ะ ${table.number}" ออกจากกลุ่มใช่หรือไม่?`)) return;
     try {
@@ -207,7 +202,7 @@ export default function TableStatusDashboard() {
   };
 
   const handleResetAllTables = async () => {
-    if (!confirm("⚠️ คำเตือน: รีเซ็ตโต๊ะทั้งหมด?")) return;
+    if (!confirm("รีเซ็ตโต๊ะทั้งหมด?")) return;
     try {
       const activeTables = tables.filter(t => (t.status || "").trim() !== "ว่าง");
       await Promise.all(activeTables.map(t => updateTable(t.table_id, "changeStatus", { status: "ว่าง" })));
@@ -262,18 +257,14 @@ export default function TableStatusDashboard() {
         </header>
 
         <main className="p-6 bg-gray-50/50 min-h-[calc(100vh-4rem)] dark:bg-black">
-          {/* ✅ ส่วน Loading State (เปลี่ยนเป็นสีส้ม) */}
           {isLoading ? (
             <div className="flex flex-col items-center justify-center h-[60vh] gap-4">
-              {/* เปลี่ยนสี Spinner เป็นสีส้ม */}
               <Loader2 className="h-10 w-10 animate-spin text-orange-600" />
-              {/* เปลี่ยนสีข้อความ เป็นสีส้ม */}
               <p className="text-sm font-medium animate-pulse text-orange-600">กำลังโหลดข้อมูล...</p>
             </div>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
 
-              {/* ปุ่มสร้างออเดอร์กลับบ้านใหม่ */}
               <Card
                 className="flex flex-col border-2 border-dashed border-purple-300 shadow-sm hover:shadow-lg hover:border-purple-500 transition-all cursor-pointer group bg-purple-50/30 dark:bg-purple-900/10 dark:border-purple-800 dark:hover:border-purple-500"
                 onClick={handleOpenTakeoutModal}
@@ -286,7 +277,6 @@ export default function TableStatusDashboard() {
                 </CardContent>
               </Card>
 
-              {/* รายการสั่งกลับบ้านที่ค้างอยู่ */}
               {activeTakeaways.map((takeout) => (
                 <Card key={`takeout-${takeout.order_id}`} className="flex flex-col overflow-hidden shadow-sm hover:shadow-md transition-shadow border border-t-4 border-t-purple-500 bg-white relative dark:bg-black dark:border-zinc-900 dark:shadow-none">
                   <CardHeader className="pb-3 flex flex-row items-center justify-between border-b border-gray-50 dark:border-zinc-900">
@@ -337,7 +327,6 @@ export default function TableStatusDashboard() {
                 </Card>
               ))}
 
-              {/* โต๊ะปกติ */}
               {tables.map((table) => {
                 const status = (table.status || "").trim();
                 const isMerged = table.group_id ? true : false;
@@ -439,7 +428,6 @@ export default function TableStatusDashboard() {
           )}
         </main>
 
-        {/* --- Modals ต่างๆ (Takeout, Move, Merge) คงเดิม --- */}
         <Dialog open={isTakeoutOpen} onOpenChange={setIsTakeoutOpen}>
           <DialogContent className="dark:bg-black dark:border-zinc-900">
             <DialogHeader>

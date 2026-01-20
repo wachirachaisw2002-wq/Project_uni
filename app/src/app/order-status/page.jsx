@@ -1,4 +1,3 @@
-// app/orders-status-page-split/page.jsx
 "use client";
 
 import { useState, useEffect, useMemo, useRef } from "react";
@@ -18,7 +17,6 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-// ✅ Import Loader2 เพิ่ม
 import { Edit2, Trash2, ChefHat, UtensilsCrossed, ArrowLeft, Clock, CheckCircle2, BellRing, Package, ShoppingBag, User, XCircle, Loader2 } from "lucide-react";
 
 export default function OrdersStatusPageSplit() {
@@ -380,7 +378,6 @@ export default function OrdersStatusPageSplit() {
         </header>
 
         <main className="p-6 bg-gray-50/50 min-h-[calc(100vh-4rem)] dark:bg-black">
-          {/* ✅ ส่วน Loading State สีส้ม */}
           {loading ? (
             <div className="flex flex-col items-center justify-center h-[60vh] gap-4">
               <Loader2 className="h-10 w-10 animate-spin text-orange-600" />

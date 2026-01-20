@@ -1,4 +1,3 @@
-// app/cart/page.jsx
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
@@ -7,14 +6,12 @@ import { Button } from "@/components/ui/button";
 import { AppSidebar } from "@/components/app-sidebar";
 import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { Card } from "@/components/ui/card";
-// ✅ Import Loader2 เพิ่ม
 import { Trash2, Plus, Minus, ArrowLeft, ShoppingBag, Utensils, UtensilsCrossed, Loader2 } from "lucide-react";
 
 export default function CartPage() {
     const router = useRouter();
     const searchParams = useSearchParams();
 
-    // --- 1. รับค่า Params ---
     const table = useMemo(() => searchParams.get("table") ?? "", [searchParams]);
     const type = searchParams.get("type");
     const customerName = searchParams.get("customerName");
@@ -22,9 +19,8 @@ export default function CartPage() {
 
     const [cart, setCart] = useState([]);
     const [isClient, setIsClient] = useState(false);
-    const [isLoading, setIsLoading] = useState(true); // ✅ เพิ่ม Loading State
+    const [isLoading, setIsLoading] = useState(true);
 
-    // --- 2. แก้ Redirect Logic ---
     useEffect(() => {
         setIsClient(true);
         if (!table && type !== 'takeout') {
@@ -32,7 +28,6 @@ export default function CartPage() {
         }
     }, [table, type, router]);
 
-    // --- 3. แก้ LocalStorage Key ---
     const cartKey = useMemo(() => {
         if (table) return `cart_${table}`;
         if (type === 'takeout') return `cart_takeout`;
@@ -41,11 +36,10 @@ export default function CartPage() {
 
     useEffect(() => {
         if (!cartKey) return;
-        // จำลองการโหลดนิดนึงเพื่อให้เห็น Spinner หรือโหลดทันทีก็ได้
         setIsLoading(true);
         const savedCart = JSON.parse(localStorage.getItem(cartKey) || "[]");
         setCart(Array.isArray(savedCart) ? savedCart : []);
-        setIsLoading(false); // ✅ โหลดเสร็จแล้วปิด Loading
+        setIsLoading(false);
     }, [cartKey]);
 
     function updateCart(newCart) {
@@ -100,7 +94,6 @@ export default function CartPage() {
         [cart]
     );
 
-    // --- 4. แก้ API Payload ---
     async function confirmOrder() {
         if (!table && type !== 'takeout') return;
         if (cart.length === 0) {
@@ -162,7 +155,6 @@ export default function CartPage() {
         <SidebarProvider>
             <AppSidebar />
             <SidebarInset>
-                {/* Header */}
                 <header className="sticky top-0 z-10 flex h-16 items-center justify-between px-6 border-b 
                     bg-white/95 backdrop-blur shadow-sm
                     dark:bg-black/95 dark:border-zinc-900 dark:shadow-none"
@@ -190,9 +182,7 @@ export default function CartPage() {
                     </Button>
                 </header>
 
-                {/* Main Content */}
                 <main className="p-4 sm:p-6 bg-gray-50/50 min-h-[calc(100vh-4rem-5rem)] flex flex-col gap-4 pb-32 dark:bg-black">
-                    {/* ✅ ส่วน Loading State */}
                     {isLoading ? (
                         <div className="flex flex-col items-center justify-center h-[60vh] gap-4">
                             <Loader2 className="h-10 w-10 animate-spin text-orange-600" />
@@ -227,7 +217,6 @@ export default function CartPage() {
                                         key={compositeKey}
                                         className="flex flex-row overflow-hidden border border-gray-100 shadow-sm hover:shadow-md transition-shadow bg-white h-28 sm:h-32 dark:bg-black dark:border-zinc-900 dark:shadow-none"
                                     >
-                                        {/* Image Section */}
                                         <div className="h-full aspect-square p-2 flex-shrink-0">
                                             <div
                                                 className="w-full h-full relative overflow-hidden rounded-lg bg-gray-100 shadow-sm border border-gray-100 dark:bg-zinc-900 dark:border-zinc-800"
@@ -247,7 +236,6 @@ export default function CartPage() {
                                             </div>
                                         </div>
 
-                                        {/* รายละเอียด */}
                                         <div className="flex flex-col flex-1 py-3 pr-3 pl-0 justify-between">
                                             <div className="flex justify-between items-start gap-1">
                                                 <div className="overflow-hidden">
@@ -309,7 +297,6 @@ export default function CartPage() {
                     )}
                 </main>
 
-                {/* Footer สรุปยอดเงิน */}
                 {cart.length > 0 && (
                     <div className="fixed bottom-0 right-0 w-full md:pl-64 z-20">
                         <div

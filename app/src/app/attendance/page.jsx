@@ -13,13 +13,11 @@ import {
   History, Timer, MapPin, Camera, Clock
 } from "lucide-react";
 
-// --- 📍 พิกัดร้าน: เดอะพาเลซ ขอนแก่น ---
 const SHOP_LOCATION = {
   lat: 16.4633962,
   lng: 102.8276568
 };
-const ALLOWED_RADIUS_METERS = 50; // ระยะห่างที่ยอมรับได้ (เมตร)
-// ----------------------------------------------------
+const ALLOWED_RADIUS_METERS = 50; 
 
 export default function AttendancePage() {
   const router = useRouter();
@@ -31,11 +29,9 @@ export default function AttendancePage() {
   const [history, setHistory] = useState([]);
   const [currentSession, setCurrentSession] = useState(null);
 
-  // State สำหรับเก็บรูปถ่าย
   const [photo, setPhoto] = useState(null);
 
   useEffect(() => {
-    // อัปเดตนาฬิกาทุกวินาที
     setCurrentTime(new Date());
     const timer = setInterval(() => setCurrentTime(new Date()), 1000);
     return () => clearInterval(timer);
@@ -46,7 +42,6 @@ export default function AttendancePage() {
     if (!userId) { router.push("/"); return; }
 
     try {
-      // ✅ เพิ่ม cache: 'no-store' เพื่อไม่ให้จำค่าเดิม (แก้ปัญหาข้อมูลไม่อัปเดต)
       const res = await fetch(`/api/attendance?userId=${userId}`, {
         cache: 'no-store',
         headers: { 'Pragma': 'no-cache' }
@@ -69,7 +64,6 @@ export default function AttendancePage() {
     fetchAttendance();
   }, [router]);
 
-  // --- ฟังก์ชันย่อรูปภาพ ---
   const compressImage = (file) => {
     return new Promise((resolve) => {
       const reader = new FileReader();
@@ -183,7 +177,6 @@ export default function AttendancePage() {
     }
 
     const action = isCheckedIn ? "check_out" : "check_in";
-    // ✅ ส่งเวลาปัจจุบันของ Client ไปด้วย เพื่อความแม่นยำ (ถ้า Backend รองรับ)
     const clientTimestamp = new Date().toISOString();
 
     try {
@@ -196,7 +189,7 @@ export default function AttendancePage() {
           lat: locationData.lat,
           lng: locationData.lng,
           photo: isCheckedIn ? null : photo,
-          timestamp: clientTimestamp // ส่งเวลา
+          timestamp: clientTimestamp 
         }),
       });
 
@@ -227,15 +220,12 @@ export default function AttendancePage() {
     return `${hours} ชม. ${minutes} นาที`;
   };
 
-  // ✅ ฟังก์ชันจัดรูปแบบเวลา (หัวใจสำคัญของการแก้ปัญหา Timezone)
   const formatDateTime = (dateStr, type = 'time') => {
     if (!dateStr) return "-";
     const date = new Date(dateStr);
-    
-    // ตรวจสอบว่าวันที่ถูกต้องหรือไม่
+
     if (isNaN(date.getTime())) return "-";
 
-    // ตั้งค่าให้แสดงผลเป็น Timezone ประเทศไทยเสมอ
     const options = {
       timeZone: 'Asia/Bangkok', 
     };
@@ -245,7 +235,7 @@ export default function AttendancePage() {
         ...options,
         hour: '2-digit', 
         minute: '2-digit',
-        hour12: false // แสดงผลแบบ 24 ชม.
+        hour12: false 
       });
     }
     return date.toLocaleDateString('th-TH', { 
@@ -261,7 +251,6 @@ export default function AttendancePage() {
       <AppSidebar />
       <SidebarInset className="dark:bg-black h-screen flex flex-col overflow-hidden w-full">
 
-        {/* 🔴 Header */}
         <header className="flex-none z-50 flex h-16 w-full items-center justify-between px-4 border-b 
           bg-white dark:bg-zinc-950 dark:border-zinc-800">
           <div className="flex items-center gap-3">
@@ -271,7 +260,6 @@ export default function AttendancePage() {
           </div>
         </header>
 
-        {/* 🔴 Main Content */}
         <main className="flex-1 overflow-y-auto p-2 sm:p-4 bg-zinc-50/30 dark:bg-black w-full">
 
           {isLoading ? (
@@ -284,7 +272,6 @@ export default function AttendancePage() {
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
 
-                {/* Clock Card */}
                 <Card className="border-none shadow-sm bg-gradient-to-br from-zinc-900 to-zinc-800 text-white rounded-2xl overflow-hidden relative">
                   <div className="absolute top-0 right-0 p-32 bg-white/5 rounded-full blur-3xl -mr-16 -mt-16"></div>
                   <CardContent className="p-6 flex flex-col justify-between h-full relative z-10 min-h-[200px]">
@@ -306,7 +293,6 @@ export default function AttendancePage() {
                   </CardContent>
                 </Card>
 
-                {/* Action Card */}
                 <Card className="border-none shadow-sm bg-white dark:bg-zinc-900 rounded-2xl ring-1 ring-zinc-100 dark:ring-zinc-800 flex flex-col justify-center items-center p-6 text-center">
 
                   {!isCheckedIn && (
@@ -375,7 +361,6 @@ export default function AttendancePage() {
                 </Card>
               </div>
 
-              {/* History Table */}
               <div className="space-y-3">
                 <div className="flex items-center gap-2 px-1">
                   <History className="w-4 h-4 text-zinc-500" />

@@ -25,14 +25,13 @@ import {
   SelectTrigger,
   SelectValue
 } from "@/components/ui/select";
-// ✅ Import Loader2 เพิ่ม
 import { Edit2, Trash2, Plus, Search, Utensils, ImageIcon, ChefHat, Package, X, Loader2 } from "lucide-react";
 
 export default function MenuPage() {
   const API_BASE = "/api/menu";
   const [categories, setCategories] = useState([]);
   const [menus, setMenus] = useState([]);
-  const [loading, setLoading] = useState(true); // ✅ เพิ่ม State Loading
+  const [loading, setLoading] = useState(true); 
 
   const [activeCategory, setActiveCategory] = useState("ทั้งหมด");
   const [activeType, setActiveType] = useState("ทั้งหมด");
@@ -68,7 +67,7 @@ export default function MenuPage() {
   }
 
   async function fetchMenus() {
-    setLoading(true); // ✅ เริ่มโหลด
+    setLoading(true); 
     try {
       const res = await fetch(API_BASE, { cache: "no-store" });
       if (!res.ok) throw new Error("โหลดข้อมูลเมนูล้มเหลว");
@@ -79,7 +78,7 @@ export default function MenuPage() {
     } catch (error) {
       console.error(error);
     } finally {
-      setLoading(false); // ✅ โหลดเสร็จ
+      setLoading(false); 
     }
   }
 
@@ -149,7 +148,6 @@ export default function MenuPage() {
   async function toggleStatus(menu) {
     const newStatus = !menu.available;
 
-    // Optimistic Update
     setMenus(prev => prev.map(m => m.menu_id === menu.menu_id ? { ...m, available: newStatus } : m));
 
     try {
@@ -165,7 +163,7 @@ export default function MenuPage() {
     } catch (error) {
       console.error(error);
       alert("เกิดข้อผิดพลาดในการบันทึกสถานะ");
-      fetchMenus(); // Revert
+      fetchMenus();
     }
   }
 
@@ -256,7 +254,6 @@ export default function MenuPage() {
 
         <main className="p-6 min-h-[calc(100vh-4rem)] space-y-6 bg-zinc-50/30 dark:bg-black">
 
-          {/* ✅ ส่วน Loading State */}
           {loading ? (
             <div className="flex flex-col items-center justify-center h-[60vh] gap-4">
               <Loader2 className="h-10 w-10 animate-spin text-orange-600" />

@@ -138,10 +138,8 @@ export default function ProfilePage() {
       );
    }
 
-   // ✅ แก้ไข: ดึง 2 ตัวอักษรแรกของชื่อเสมอ
    const getInitials = (name) => {
       if (!name) return "พง";
-      // ตัดช่องว่างซ้ายขวาออก แล้วเอา substring 0-2 (ตัวที่ 1 และ 2)
       return name.trim().substring(0, 2);
    };
 
@@ -174,7 +172,6 @@ export default function ProfilePage() {
                         <CardContent className="p-6 flex flex-col items-center text-center space-y-4 pt-8">
                            <Avatar className="h-24 w-24 border-4 border-white shadow-md dark:border-zinc-800">
                               <AvatarFallback className="bg-orange-100 text-orange-600 text-2xl font-bold">
-                                 {/* ใช้ getInitials กับ name_th ตามต้องการ */}
                                  {getInitials(displayData.name_th)}
                               </AvatarFallback>
                            </Avatar>

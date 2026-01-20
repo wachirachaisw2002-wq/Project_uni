@@ -26,7 +26,6 @@ import {
   SelectTrigger,
   SelectValue
 } from "@/components/ui/select";
-// ✅ Import Calendar และส่วนที่เกี่ยวข้อง
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { format } from "date-fns";
@@ -52,12 +51,10 @@ export default function Page() {
   const [viewOpen, setViewOpen] = useState(false);
   const [viewingEmployee, setViewingEmployee] = useState(null);
 
-  // Form States
   const [position, setPosition] = useState("");
   const [status, setStatus] = useState("");
   const [empType, setEmpType] = useState("");
 
-  // ✅ State สำหรับวันที่ (Calendar)
   const [birthDate, setBirthDate] = useState();
   const [startDate, setStartDate] = useState();
 
@@ -123,7 +120,6 @@ export default function Page() {
     setStatus(STATUS[0]);
     setEmpType(EMPLOYMENT_TYPES[0]);
 
-    // ✅ Reset วันเกิด และ Set วันเริ่มงานเป็น "วันนี้" อัตโนมัติ
     setBirthDate(undefined);
     setStartDate(new Date());
 
@@ -137,7 +133,6 @@ export default function Page() {
     setStatus(emp.status || STATUS[0]);
     setEmpType(emp.employment_type || EMPLOYMENT_TYPES[0]);
 
-    // ✅ Set วันที่จากข้อมูลเดิม
     setBirthDate(emp.birth_date ? new Date(emp.birth_date) : undefined);
     setStartDate(emp.start_date ? new Date(emp.start_date) : undefined);
 
@@ -165,7 +160,6 @@ export default function Page() {
     e.preventDefault();
     const formData = new FormData(e.currentTarget);
 
-    // ✅ แปลง Date Object เป็น String (yyyy-MM-dd) ก่อนส่ง
     const formattedBirthDate = birthDate ? format(birthDate, "yyyy-MM-dd") : null;
     const formattedStartDate = startDate ? format(startDate, "yyyy-MM-dd") : null;
 
@@ -174,7 +168,7 @@ export default function Page() {
       name_en: formData.get("name_en"),
       nickname: formData.get("nickname") || null,
       id_card_number: formData.get("id_card_number") || null,
-      birth_date: formattedBirthDate, // ใช้ค่าจาก State
+      birth_date: formattedBirthDate,
       address: formData.get("address"),
       phone: formData.get("phone"),
       line_id: formData.get("line_id"),
@@ -183,7 +177,7 @@ export default function Page() {
       position: position,
       status: status,
       employment_type: empType,
-      start_date: formattedStartDate, // ใช้ค่าจาก State
+      start_date: formattedStartDate,
       salary: Number(formData.get("salary")),
     };
 
@@ -351,13 +345,11 @@ export default function Page() {
                 </CardContent>
               </Card>
 
-              {/* Dialog ดูข้อมูลพนักงาน */}
               <Dialog open={viewOpen} onOpenChange={setViewOpen}>
                 <DialogContent className="max-w-2xl overflow-hidden p-0 gap-0 dark:bg-zinc-950 dark:border-zinc-800 rounded-2xl">
 
                   {viewingEmployee && (
                     <>
-                      {/* Header Area */}
                       <div className="bg-zinc-50 dark:bg-zinc-900 px-8 py-8 flex flex-col items-center border-b dark:border-zinc-800">
                         <div className="h-20 w-20 rounded-full bg-orange-100 dark:bg-orange-900/30 text-orange-600 dark:text-orange-400 flex items-center justify-center text-3xl font-bold mb-4 shadow-sm">
                           {getInitials(viewingEmployee.name_en || viewingEmployee.name_th)}
@@ -367,10 +359,8 @@ export default function Page() {
                         <Badge className={`${getStatusBadge(viewingEmployee.status)} px-3 py-1`}>{viewingEmployee.status}</Badge>
                       </div>
 
-                      {/* Scrollable Content */}
                       <div className="max-h-[60vh] overflow-y-auto px-8 py-6 space-y-8">
 
-                        {/* Section: ข้อมูลส่วนตัว */}
                         <div>
                           <h3 className="text-sm font-semibold text-zinc-400 uppercase tracking-wider mb-4 flex items-center gap-2">
                             <User className="w-4 h-4" /> ข้อมูลส่วนตัว
@@ -421,7 +411,6 @@ export default function Page() {
 
                         <Separator />
 
-                        {/* Section: การทำงาน */}
                         <div>
                           <h3 className="text-sm font-semibold text-zinc-400 uppercase tracking-wider mb-4 flex items-center gap-2">
                             <Briefcase className="w-4 h-4" /> ข้อมูลการทำงาน
@@ -458,7 +447,6 @@ export default function Page() {
                 </DialogContent>
               </Dialog>
 
-              {/* Dialog Form สำหรับ Add/Edit */}
               <Dialog open={open} onOpenChange={setOpen}>
                 <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto dark:bg-zinc-950 dark:border-zinc-800">
                   <DialogHeader>
@@ -474,11 +462,11 @@ export default function Page() {
                       </h3>
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div className="space-y-2">
-                          <Label className="dark:text-zinc-400">ชื่อ-นามสกุล (ไทย)</Label>
+                          <Label className="dark:text-zinc-400">ชื่อ-นามสกุล</Label>
                           <Input name="name_th" defaultValue={editingEmployee?.name_th} required className="dark:bg-zinc-900 dark:border-zinc-800" />
                         </div>
                         <div className="space-y-2">
-                          <Label className="dark:text-zinc-400">Full Name (English)</Label>
+                          <Label className="dark:text-zinc-400">Full Name</Label>
                           <Input name="name_en" defaultValue={editingEmployee?.name_en} className="dark:bg-zinc-900 dark:border-zinc-800" />
                         </div>
                         <div className="space-y-2">
@@ -487,7 +475,7 @@ export default function Page() {
                         </div>
 
                         <div className="space-y-2">
-                          <Label className="dark:text-zinc-400">เลขบัตรประชาชน (13 หลัก)</Label>
+                          <Label className="dark:text-zinc-400">เลขบัตรประชาชน</Label>
                           <Input
                             name="id_card_number"
                             defaultValue={editingEmployee?.id_card_number}
@@ -499,8 +487,6 @@ export default function Page() {
                             }}
                           />
                         </div>
-
-                        {/* ✅ ใช้ Calendar Component สำหรับวันเกิด */}
                         <div className="space-y-2 flex flex-col">
                           <Label className="dark:text-zinc-400">วัน/เดือน/ปีเกิด</Label>
                           <Popover>
@@ -576,7 +562,6 @@ export default function Page() {
                           </Select>
                         </div>
 
-                        {/* ✅ ใช้ Calendar Component สำหรับวันที่เริ่มงาน */}
                         <div className="space-y-2 flex flex-col">
                           <Label className="dark:text-zinc-400">วันที่เริ่มงาน</Label>
                           <Popover>
@@ -632,7 +617,7 @@ export default function Page() {
                       </h3>
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div className="space-y-2">
-                          <Label className="dark:text-zinc-400">อีเมล (Username)</Label>
+                          <Label className="dark:text-zinc-400">อีเมล</Label>
                           <Input type="email" name="email" defaultValue={editingEmployee?.email} required className="dark:bg-zinc-900 dark:border-zinc-800" />
                         </div>
                         <div className="space-y-2">

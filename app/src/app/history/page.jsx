@@ -23,7 +23,7 @@ import {
   AlertTriangle,
   ShoppingBag,
   MessageSquare,
-  Loader2 // ✅ Import Loader2 เพิ่ม
+  Loader2 
 } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -54,7 +54,6 @@ export default function Page() {
   const [editPaymentType, setEditPaymentType] = useState("");
   const [editReason, setEditReason] = useState("");
 
-  // ดึงข้อมูลพนักงานปัจจุบัน
   useEffect(() => {
     const fetchMe = async () => {
       try {
@@ -183,7 +182,6 @@ export default function Page() {
 
         <main className="p-4 md:p-8 space-y-6 max-w-7xl mx-auto w-full">
 
-          {/* ✅ ส่วน Loading State */}
           {loading ? (
             <div className="flex flex-col items-center justify-center h-[60vh] gap-4">
               <Loader2 className="h-10 w-10 animate-spin text-orange-600" />
@@ -321,7 +319,6 @@ export default function Page() {
           )}
         </main>
 
-        {/* Dialog ดูรายละเอียดบิล */}
         <Dialog open={open} onOpenChange={setOpen}>
           <DialogContent className="max-w-md bg-white dark:bg-black border-zinc-200 dark:border-zinc-800 p-0 overflow-hidden rounded-3xl">
             <DialogHeader className="p-6 pb-2 border-b dark:border-zinc-900">
@@ -417,7 +414,6 @@ export default function Page() {
           </DialogContent>
         </Dialog>
 
-        {/* Dialog แก้ไขบิล */}
         <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
           <DialogContent className="max-w-3xl bg-white dark:bg-black border-zinc-200 dark:border-zinc-800 p-0 overflow-hidden rounded-3xl shadow-2xl">
             <DialogHeader className="p-6 bg-zinc-50 dark:bg-zinc-950 border-b dark:border-zinc-900">

@@ -9,7 +9,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-// ✅ 1. เพิ่ม DialogTitle เข้ามาใน import
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import {
   Loader2, CalendarIcon, MapPin,
@@ -26,14 +25,12 @@ export default function TimeReportPage() {
   const [records, setRecords] = useState([]);
   const [employees, setEmployees] = useState([]);
 
-  // Filters
   const [selectedEmp, setSelectedEmp] = useState("all");
   const [selectedDate, setSelectedDate] = useState(new Date());
 
   const [photoModalOpen, setPhotoModalOpen] = useState(false);
   const [currentPhoto, setCurrentPhoto] = useState(null);
 
-  // 1. Fetch Employees
   useEffect(() => {
     const fetchEmployees = async () => {
       try {
@@ -50,7 +47,6 @@ export default function TimeReportPage() {
     fetchEmployees();
   }, []);
 
-  // 2. Fetch Report
   const fetchReport = useCallback(async () => {
     setLoading(true);
     try {
@@ -80,7 +76,6 @@ export default function TimeReportPage() {
     fetchReport();
   }, [fetchReport]);
 
-  // --- Helper Functions ---
   const calculateDuration = (start, end) => {
     if (!start || !end) return "-";
     const startTime = new Date(start);
@@ -133,7 +128,6 @@ export default function TimeReportPage() {
 
         <main className="flex-1 overflow-y-auto p-2 sm:p-4 bg-zinc-50/30 dark:bg-black w-full">
 
-          {/* ✅ ย้าย Loading มาเช็คตรงนี้แทน เพื่อให้ Sidebar ยังคงแสดงอยู่ */}
           {loading ? (
             <div className="flex flex-col items-center justify-center h-[calc(100vh-5rem)] gap-4">
               <Loader2 className="h-10 w-10 animate-spin text-orange-600" />
@@ -142,7 +136,6 @@ export default function TimeReportPage() {
           ) : (
             <div className="max-w-3xl mx-auto space-y-4">
 
-              {/* Filter Card */}
               <Card className="border-none shadow-sm dark:bg-zinc-900/40 dark:ring-1 dark:ring-zinc-800">
                 <CardContent className="p-3 space-y-3">
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -201,7 +194,6 @@ export default function TimeReportPage() {
                 </CardContent>
               </Card>
 
-              {/* Data Table Card */}
               <Card className="border-none shadow-sm overflow-hidden dark:bg-zinc-900/40 dark:ring-1 dark:ring-zinc-800">
                 <CardContent className="p-0">
                   <div className="overflow-x-auto w-full">
@@ -308,10 +300,8 @@ export default function TimeReportPage() {
             </div>
           )}
 
-          {/* Photo Modal */}
           <Dialog open={photoModalOpen} onOpenChange={setPhotoModalOpen}>
             <DialogContent className="sm:max-w-md p-0 overflow-hidden bg-black border-zinc-800">
-              {/* ✅ 2. เพิ่ม DialogTitle ตรงนี้และซ่อนไว้ (Visually Hidden) */}
               <DialogTitle className="sr-only">รูปถ่ายยืนยัน</DialogTitle>
 
               <div className="relative w-full aspect-[3/4] md:aspect-square flex items-center justify-center bg-black">
