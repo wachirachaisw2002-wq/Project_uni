@@ -9,7 +9,6 @@ async function updateTableAfterOrder(conn, tableNum, mode /* 'start' | 'add' */)
       ? "status = 'มีลูกค้า', order_count = 1"
       : "order_count = order_count + 1";
 
-
   let [res] = await conn.query(`UPDATE tables SET ${setSql} WHERE table_id = ?`, [tableNum]);
   if (res.affectedRows > 0) return;
 
@@ -34,7 +33,7 @@ export async function GET(request) {
   try {
     const { searchParams } = new URL(request.url);
     const tableParam = searchParams.get("table");
-    const typeParam = searchParams.get("type"); 
+    const typeParam = searchParams.get("type");
     const customerName = searchParams.get("customerName");
 
     if (!tableParam && typeParam !== 'takeout') {
@@ -87,12 +86,11 @@ export async function GET(request) {
           params = [currentTable.number];
         }
       } else {
-        return NextResponse.json([]); 
+        return NextResponse.json([]);
       }
     }
 
     const [rows] = await conn.query(query, params);
-
 
     const ordersMap = {};
     for (const row of rows) {
@@ -102,7 +100,7 @@ export async function GET(request) {
           table_number: row.table_number,
           order_type: row.order_type,
           customer_name: row.customer_name,
-          customer_phone: row.customer_phone, 
+          customer_phone: row.customer_phone,
           total_price: row.total_price,
           created_at: row.created_at,
           items: [],
@@ -163,6 +161,26 @@ export async function POST(request) {
     }));
 
     conn = await pool.getConnection();
+
+    // ✅✅✅ ส่วนที่เพิ่ม: ตรวจสอบสินค้าหมดก่อนเริ่ม Transaction ✅✅✅
+    const menuIds = safeItems.map((i) => i.menu_id);
+    if (menuIds.length > 0) {
+      const [unavailableItems] = await conn.query(
+        "SELECT name FROM menus WHERE menu_id IN (?) AND (available = 0 OR available IS FALSE)",
+        [menuIds]
+      );
+
+      if (unavailableItems.length > 0) {
+        const names = unavailableItems.map((i) => i.name).join(", ");
+        conn.release(); // คืน Connection ทันที
+        return NextResponse.json(
+          { message: `ขออภัย รายการต่อไปนี้สินค้าหมด: ${names}` },
+          { status: 400 }
+        );
+      }
+    }
+    // ✅✅✅ จบส่วนที่เพิ่ม ✅✅✅
+
     await conn.beginTransaction();
 
     let existingOrderId = null;
@@ -239,6 +257,26 @@ export async function PATCH(request) {
     }));
 
     conn = await pool.getConnection();
+
+    // ✅✅✅ ส่วนที่เพิ่ม: ตรวจสอบสินค้าหมดก่อนเริ่ม Transaction ✅✅✅
+    const menuIds = safeItems.map((i) => i.menu_id);
+    if (menuIds.length > 0) {
+      const [unavailableItems] = await conn.query(
+        "SELECT name FROM menus WHERE menu_id IN (?) AND (available = 0 OR available IS FALSE)",
+        [menuIds]
+      );
+
+      if (unavailableItems.length > 0) {
+        const names = unavailableItems.map((i) => i.name).join(", ");
+        conn.release(); // คืน Connection ทันที
+        return NextResponse.json(
+          { message: `ขออภัย รายการต่อไปนี้สินค้าหมด: ${names}` },
+          { status: 400 }
+        );
+      }
+    }
+    // ✅✅✅ จบส่วนที่เพิ่ม ✅✅✅
+
     await conn.beginTransaction();
 
     const [existing] = await conn.query(

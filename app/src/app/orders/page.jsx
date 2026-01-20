@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { Search, ShoppingCart, Plus, Minus, UtensilsCrossed, Trash2 } from "lucide-react"; // ✅ เพิ่ม Trash2
+import { Search, ShoppingCart, Plus, Minus, UtensilsCrossed, Trash2, Ban } from "lucide-react";
 import {
   Select,
   SelectTrigger,
@@ -127,12 +127,8 @@ export default function OrderPage() {
     if (key) localStorage.setItem(key, JSON.stringify(updatedCart));
   }
 
-  // ✅ แก้ไขฟังก์ชันลดจำนวน: ถ้าเหลือ 1 กดแล้วจะเป็น 0 ให้ลบออกจาก Array ทันที
   function decreaseFromCart(item) {
     const menuId = item.menu_id ?? item.id;
-
-    // ใช้ findLastIndex เพื่อลบตัวล่าสุดที่เพิ่มเข้าไป (กรณีมีหลาย Note จะได้ลบตัวท้ายสุดก่อน)
-    // หรือถ้าต้องการลบตัวแรกที่เจอให้ใช้ findIndex เหมือนเดิมก็ได้ครับ
     const existingIndex = cart.findLastIndex((p) => (p.menu_id ?? p.id) === menuId);
 
     if (existingIndex > -1) {
@@ -140,7 +136,6 @@ export default function OrderPage() {
       if (updatedCart[existingIndex].qty > 1) {
         updatedCart[existingIndex].qty -= 1;
       } else {
-        // ถ้าเหลือ 1 แล้วกดลด -> ลบออกจากตะกร้า
         updatedCart.splice(existingIndex, 1);
       }
       setCart(updatedCart);
@@ -166,6 +161,9 @@ export default function OrderPage() {
       return matchSearch && matchCategory;
     });
     return filtered.sort((a, b) => {
+      // เรียงสินค้าหมดไว้ท้ายสุด (optional: ถ้าอยากให้สินค้าหมดไปอยู่ข้างล่าง ให้ uncomment บรรทัดล่างนี้)
+      // if (a.available !== b.available) return a.available === false ? 1 : -1;
+
       const catA = norm(a.category).trim();
       const catB = norm(b.category).trim();
       const idxA = categories.indexOf(catA);
@@ -256,11 +254,15 @@ export default function OrderPage() {
               filteredMenus.map((menu) => {
                 const qtyInCart = getMenuQtyInCart(menu.menu_id ?? menu.id);
                 const isReadyType = menu.type === "ready";
+                // ✅ ตรวจสอบสถานะ available (สมมติว่าเป็น 1/0 หรือ true/false)
+                const isAvailable = menu.available !== false && menu.available !== 0;
 
                 return (
                   <Card
                     key={menu.menu_id ?? menu.id}
-                    className="flex flex-row overflow-hidden h-36 border border-gray-100 shadow-sm hover:shadow-md transition-all group bg-white relative dark:bg-black dark:border-zinc-900 dark:shadow-none"
+                    className={`flex flex-row overflow-hidden h-36 border border-gray-100 shadow-sm transition-all group bg-white relative dark:bg-black dark:border-zinc-900 dark:shadow-none
+                      ${!isAvailable ? 'opacity-80 grayscale-[0.8] bg-gray-50 dark:bg-zinc-900/50' : 'hover:shadow-md'}
+                    `}
                   >
                     {/* Image Section */}
                     <div className="w-36 h-full flex-shrink-0 relative p-3">
@@ -269,12 +271,21 @@ export default function OrderPage() {
                           <img
                             src={menu.image}
                             alt={menu.name}
-                            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                            className="w-full h-full object-cover transition-transform duration-300"
                           />
                         ) : (
                           <div className="w-full h-full flex flex-col items-center justify-center text-gray-400 dark:text-zinc-700">
                             <UtensilsCrossed className="h-6 w-6 mb-1 opacity-50" />
                             <span className="text-[10px]">ไม่มีรูป</span>
+                          </div>
+                        )}
+
+                        {/* ✅ Overlay ป้ายสินค้าหมด */}
+                        {!isAvailable && (
+                          <div className="absolute inset-0 bg-black/60 z-10 flex items-center justify-center backdrop-blur-[1px]">
+                            <span className="text-white font-bold text-sm border-2 border-white px-2 py-1 rounded-md transform -rotate-12 tracking-widest whitespace-nowrap">
+                              สินค้าหมด
+                            </span>
                           </div>
                         )}
                       </div>
@@ -284,7 +295,7 @@ export default function OrderPage() {
                     <div className="flex flex-col justify-between flex-1 p-4 pl-1">
                       <div>
                         <div className="flex justify-between items-start">
-                          <h3 className="font-bold text-gray-800 line-clamp-1 text-sm dark:text-zinc-50" title={menu.name}>
+                          <h3 className={`font-bold line-clamp-1 text-sm dark:text-zinc-50 ${!isAvailable ? 'text-gray-500 decoration-gray-400' : 'text-gray-800'}`} title={menu.name}>
                             {menu.name}
                           </h3>
                           {qtyInCart > 0 && (
@@ -297,12 +308,15 @@ export default function OrderPage() {
                       </div>
 
                       <div className="flex items-center justify-between mt-1">
-                        <span className="font-bold text-base text-gray-900 dark:text-zinc-50">
+                        <span className={`font-bold text-base dark:text-zinc-50 ${!isAvailable ? 'text-gray-400' : 'text-gray-900'}`}>
                           {Number(menu.price).toLocaleString()} <span className="text-[10px] font-normal text-gray-500 dark:text-zinc-500">บ.</span>
                         </span>
 
                         <div onClick={(e) => e.stopPropagation()}>
-                          {/* ✅ แก้ไขเงื่อนไข: ถ้ามีในตะกร้า (qtyInCart > 0) ให้แสดงปุ่ม ลบ/เพิ่ม เสมอ ไม่ว่าประเภทไหน */}
+                          {/* ✅ Logic ปุ่มกด: 
+                             - ถ้ามีในตะกร้า แสดงปุ่ม + - ปกติ แต่ถ้าสินค้าหมด ปุ่ม + จะกดไม่ได้ (disabled) 
+                             - ถ้าไม่มีในตะกร้า และสินค้าหมด ปุ่มใหญ่จะกดไม่ได้และเปลี่ยน icon
+                          */}
                           {qtyInCart > 0 ? (
                             <div className="flex items-center bg-gray-100 rounded-full p-1 h-8 shadow-inner dark:bg-zinc-900 dark:border dark:border-zinc-800">
                               <Button
@@ -310,7 +324,6 @@ export default function OrderPage() {
                                 className="h-6 w-6 rounded-full bg-white text-gray-700 shadow-sm hover:bg-red-50 hover:text-red-600 dark:bg-zinc-800 dark:text-zinc-300 dark:hover:bg-red-950/50 dark:hover:text-red-400"
                                 onClick={() => decreaseFromCart(menu)}
                               >
-                                {/* ถ้าเหลือ 1 ให้แสดงรูปถังขยะ ถ้ามากกว่า 1 แสดงเครื่องหมายลบ */}
                                 {qtyInCart === 1 ? <Trash2 className="h-3 w-3" /> : <Minus className="h-3 w-3" />}
                               </Button>
 
@@ -318,16 +331,22 @@ export default function OrderPage() {
 
                               <Button
                                 size="icon"
-                                className="h-6 w-6 rounded-full bg-orange-600 text-white shadow-sm hover:bg-orange-700 dark:bg-orange-700 dark:hover:bg-orange-600"
+                                disabled={!isAvailable} // 🔒 ล็อคปุ่มบวกถ้าของหมด
+                                className={`h-6 w-6 rounded-full shadow-sm text-white
+                                  ${!isAvailable
+                                    ? 'bg-gray-300 dark:bg-zinc-700 cursor-not-allowed'
+                                    : 'bg-orange-600 hover:bg-orange-700 dark:bg-orange-700 dark:hover:bg-orange-600'}
+                                `}
                                 onClick={() => {
-                                  // ถ้าเป็น ready ให้เพิ่มเลย ถ้าเป็น custom ให้เปิด Dialog
-                                  if (isReadyType) {
-                                    addToCart(menu, "", 1);
-                                  } else {
-                                    setSelectedMenu(menu);
-                                    setNote("");
-                                    setQuantity(1);
-                                    setShowDialog(true);
+                                  if (isAvailable) {
+                                    if (isReadyType) {
+                                      addToCart(menu, "", 1);
+                                    } else {
+                                      setSelectedMenu(menu);
+                                      setNote("");
+                                      setQuantity(1);
+                                      setShowDialog(true);
+                                    }
                                   }
                                 }}
                               >
@@ -335,23 +354,29 @@ export default function OrderPage() {
                               </Button>
                             </div>
                           ) : (
-                            // ถ้ายังไม่มีในตะกร้า แสดงปุ่ม + ใหญ่
+                            // ปุ่มใหญ่ (ยังไม่ได้เพิ่มลงตะกร้า)
                             <Button
                               size="icon"
+                              disabled={!isAvailable} // 🔒 ล็อคปุ่ม
                               className={`h-8 w-8 rounded-full transition-colors 
-                                bg-orange-100 text-orange-600 hover:bg-orange-600 hover:text-white dark:bg-orange-950/30 dark:text-orange-400 dark:hover:bg-orange-700 dark:hover:text-white
+                                ${!isAvailable
+                                  ? 'bg-gray-200 text-gray-400 hover:bg-gray-200 cursor-not-allowed dark:bg-zinc-800 dark:text-zinc-600'
+                                  : 'bg-orange-100 text-orange-600 hover:bg-orange-600 hover:text-white dark:bg-orange-950/30 dark:text-orange-400 dark:hover:bg-orange-700 dark:hover:text-white'}
                               `}
                               onClick={() => {
-                                if (isReadyType) { addToCart(menu, "", 1); }
-                                else {
-                                  setSelectedMenu(menu);
-                                  setNote("");
-                                  setQuantity(1);
-                                  setShowDialog(true);
+                                if (isAvailable) {
+                                  if (isReadyType) { addToCart(menu, "", 1); }
+                                  else {
+                                    setSelectedMenu(menu);
+                                    setNote("");
+                                    setQuantity(1);
+                                    setShowDialog(true);
+                                  }
                                 }
                               }}
                             >
-                              <Plus className="h-5 w-5" />
+                              {/* เปลี่ยนไอคอนถ้าของหมด */}
+                              {!isAvailable ? <Ban className="h-4 w-4" /> : <Plus className="h-5 w-5" />}
                             </Button>
                           )}
                         </div>

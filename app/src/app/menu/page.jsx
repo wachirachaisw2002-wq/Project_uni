@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
+import { Switch } from "@/components/ui/switch";
 import {
   Dialog,
   DialogContent,
@@ -43,6 +44,7 @@ export default function MenuPage() {
   const [category, setCategory] = useState("");
   const [image, setImage] = useState("");
   const [menuType, setMenuType] = useState("cooked");
+  const [isAvailable, setIsAvailable] = useState(true);
 
   const [openCategoryDialog, setOpenCategoryDialog] = useState(false);
   const [newCategory, setNewCategory] = useState("");
@@ -98,6 +100,12 @@ export default function MenuPage() {
       list = list.filter(menu => (menu.name || "").toLowerCase().includes(query));
     }
     return list.sort((a, b) => {
+      // ❌ ลบบรรทัดเรียงตามความพร้อมขายออก เพื่อให้ตำแหน่งคงที่
+      // const availableA = a.available !== false ? 1 : 0;
+      // const availableB = b.available !== false ? 1 : 0;
+      // if (availableA !== availableB) return availableB - availableA;
+
+      // ✅ คงเหลือแค่เรียงตาม หมวดหมู่ -> ชื่อ
       const catCompare = catOrder(a?.category || "") - catOrder(b?.category || "");
       if (catCompare !== 0) return catCompare;
       return (a.name || "").localeCompare(b.name || "", "th");
@@ -111,6 +119,7 @@ export default function MenuPage() {
     setCategory(categories[0] || "");
     setImage("");
     setMenuType("cooked");
+    setIsAvailable(true);
     setOpen(true);
   }
 
@@ -121,6 +130,7 @@ export default function MenuPage() {
     setCategory(menu.category || categories[0] || "");
     setImage(menu.image || "");
     setMenuType(menu.type || "cooked");
+    setIsAvailable(menu.available !== false);
     setOpen(true);
   }
 
@@ -137,10 +147,41 @@ export default function MenuPage() {
     }
   }
 
+  async function toggleStatus(menu) {
+    const newStatus = !menu.available;
+
+    // Optimistic Update
+    setMenus(prev => prev.map(m => m.menu_id === menu.menu_id ? { ...m, available: newStatus } : m));
+
+    try {
+      const res = await fetch(API_BASE, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ...menu, available: newStatus }),
+      });
+
+      if (!res.ok) {
+        throw new Error("Update failed");
+      }
+    } catch (error) {
+      console.error(error);
+      alert("เกิดข้อผิดพลาดในการบันทึกสถานะ");
+      fetchMenus(); // Revert
+    }
+  }
+
   async function saveMenu() {
     if (!name || !price || !category) return alert("กรุณากรอกข้อมูลให้ครบ");
     try {
-      const body = { name, price: Number(price), category, image, type: menuType };
+      const body = {
+        name,
+        price: Number(price),
+        category,
+        image,
+        type: menuType,
+        available: isAvailable
+      };
+
       let res;
       if (editingMenu) {
         res = await fetch(API_BASE, {
@@ -238,7 +279,6 @@ export default function MenuPage() {
                 <div className="flex flex-col gap-1.5">
                   <Label className="text-xs font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">หมวดหมู่</Label>
                   <Select value={activeCategory} onValueChange={setActiveCategory}>
-                    {/* ✅ เพิ่ม w-full */}
                     <SelectTrigger className="w-full dark:bg-zinc-950 dark:border-zinc-800">
                       <SelectValue placeholder="ทั้งหมด" />
                     </SelectTrigger>
@@ -254,7 +294,6 @@ export default function MenuPage() {
                 <div className="flex flex-col gap-1.5">
                   <Label className="text-xs font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">ประเภทการปรุง</Label>
                   <Select value={activeType} onValueChange={setActiveType}>
-                    {/* ✅ เพิ่ม w-full */}
                     <SelectTrigger className="w-full dark:bg-zinc-950 dark:border-zinc-800">
                       <SelectValue placeholder="ทั้งหมด" />
                     </SelectTrigger>
@@ -275,7 +314,6 @@ export default function MenuPage() {
             </CardContent>
           </Card>
 
-          {/*Table Card */}
           <Card className="border-none shadow-sm overflow-hidden dark:bg-zinc-900/40 dark:ring-1 dark:ring-zinc-800">
             <CardContent className="p-0">
               <Table>
@@ -284,64 +322,88 @@ export default function MenuPage() {
                     <TableHead className="w-[100px] text-center dark:text-zinc-400">รูปภาพ</TableHead>
                     <TableHead className="dark:text-zinc-400">ชื่อเมนู</TableHead>
                     <TableHead className="dark:text-zinc-400">หมวดหมู่ / ประเภท</TableHead>
+                    <TableHead className="text-center dark:text-zinc-400 w-[120px]">สถานะ</TableHead>
                     <TableHead className="text-right dark:text-zinc-400">ราคา</TableHead>
-                    <TableHead className="text-right w-[120px] dark:text-zinc-400">จัดการ</TableHead>
+                    <TableHead className="text-right w-[100px] dark:text-zinc-400">จัดการ</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {filteredMenus.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={5} className="text-center py-20 text-zinc-500 italic">
+                      <TableCell colSpan={6} className="text-center py-20 text-zinc-500 italic">
                         <Utensils className="h-10 w-10 opacity-20 mx-auto mb-3" />
                         ไม่พบเมนูที่ต้องการ
                       </TableCell>
                     </TableRow>
                   ) : (
-                    filteredMenus.map((menu, idx) => (
-                      <TableRow key={menu?.menu_id ?? idx} className="dark:border-zinc-800 dark:hover:bg-zinc-800/30 transition-colors group">
-                        <TableCell className="text-center p-2">
-                          <div className="w-16 h-16 mx-auto rounded-lg overflow-hidden border dark:bg-zinc-950 dark:border-zinc-800">
-                            {menu.image ? (
-                              <img src={menu.image} alt={menu.name} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />
-                            ) : (
-                              <div className="w-full h-full flex items-center justify-center text-zinc-600">
-                                <ImageIcon className="h-6 w-6 opacity-30" />
-                              </div>
-                            )}
-                          </div>
-                        </TableCell>
-                        <TableCell className="font-normal text-zinc-800 dark:text-zinc-100 text-base">{menu.name}</TableCell>
-                        <TableCell>
-                          <div className="flex flex-col gap-1 items-start">
-                            <Badge variant="outline" className="font-normal dark:bg-zinc-950 dark:text-zinc-400 dark:border-zinc-800">
-                              {menu.category}
-                            </Badge>
-                            {menu.type === "ready" ? (
-                              <div className="flex items-center gap-1 text-[10px] text-blue-500 bg-blue-500/10 px-1.5 py-0.5 rounded border border-blue-500/20">
-                                <Package className="h-3 w-3" /> สำเร็จรูป
-                              </div>
-                            ) : (
-                              <div className="flex items-center gap-1 text-[10px] text-orange-500 bg-orange-500/10 px-1.5 py-0.5 rounded border border-orange-500/20">
-                                <ChefHat className="h-3 w-3" /> ปรุงสด
-                              </div>
-                            )}
-                          </div>
-                        </TableCell>
-                        <TableCell className="text-right font-bold text-zinc-900 dark:text-zinc-100">
-                          {Number(menu.price).toLocaleString("th-TH")} ฿
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex justify-end gap-1">
-                            <Button variant="ghost" size="icon" onClick={() => openEditDialog(menu)} className="h-8 w-8 text-blue-500 hover:text-blue-400 dark:hover:bg-blue-500/10">
-                              <Edit2 className="h-4 w-4" />
-                            </Button>
-                            <Button variant="ghost" size="icon" onClick={() => deleteMenu(menu.menu_id)} className="h-8 w-8 text-rose-500 hover:text-rose-400 dark:hover:bg-rose-500/10">
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    ))
+                    filteredMenus.map((menu, idx) => {
+                      const isAvailable = menu.available !== false; // Default true if undefined
+
+                      return (
+                        <TableRow key={menu?.menu_id ?? idx} className={`dark:border-zinc-800 transition-colors group ${!isAvailable ? 'bg-zinc-50 dark:bg-zinc-900/50' : 'hover:bg-zinc-50 dark:hover:bg-zinc-800/30'}`}>
+                          <TableCell className="text-center p-2">
+                            <div className={`w-16 h-16 mx-auto rounded-lg overflow-hidden border dark:bg-zinc-950 dark:border-zinc-800 transition-all ${!isAvailable ? 'grayscale opacity-50' : ''}`}>
+                              {menu.image ? (
+                                <img src={menu.image} alt={menu.name} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />
+                              ) : (
+                                <div className="w-full h-full flex items-center justify-center text-zinc-600">
+                                  <ImageIcon className="h-6 w-6 opacity-30" />
+                                </div>
+                              )}
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <div className={`font-medium text-base ${isAvailable ? 'text-zinc-900 dark:text-zinc-100' : 'text-zinc-400 line-through decoration-zinc-400/50'}`}>
+                              {menu.name}
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <div className={`flex flex-col gap-1 items-start ${!isAvailable ? 'opacity-50' : ''}`}>
+                              <Badge variant="outline" className="font-normal dark:bg-zinc-950 dark:text-zinc-400 dark:border-zinc-800">
+                                {menu.category}
+                              </Badge>
+                              {menu.type === "ready" ? (
+                                <div className="flex items-center gap-1 text-[10px] text-blue-500 bg-blue-500/10 px-1.5 py-0.5 rounded border border-blue-500/20">
+                                  <Package className="h-3 w-3" /> สำเร็จรูป
+                                </div>
+                              ) : (
+                                <div className="flex items-center gap-1 text-[10px] text-orange-500 bg-orange-500/10 px-1.5 py-0.5 rounded border border-orange-500/20">
+                                  <ChefHat className="h-3 w-3" /> ปรุงสด
+                                </div>
+                              )}
+                            </div>
+                          </TableCell>
+
+                          {/* Switch ในตาราง */}
+                          <TableCell className="text-center">
+                            <div className="flex flex-col items-center gap-1.5">
+                              <Switch
+                                checked={isAvailable}
+                                onCheckedChange={() => toggleStatus(menu)}
+                                className="data-[state=checked]:bg-emerald-500"
+                              />
+                              <span className={`text-[10px] font-medium ${isAvailable ? "text-emerald-600 dark:text-emerald-400" : "text-zinc-400"}`}>
+                                {isAvailable ? "เปิดขาย" : "หมด"}
+                              </span>
+                            </div>
+                          </TableCell>
+
+                          <TableCell className={`text-right font-bold ${isAvailable ? 'text-zinc-900 dark:text-zinc-100' : 'text-zinc-400'}`}>
+                            {Number(menu.price).toLocaleString("th-TH")} ฿
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex justify-end gap-1">
+                              <Button variant="ghost" size="icon" onClick={() => openEditDialog(menu)} className="h-8 w-8 text-blue-500 hover:text-blue-400 dark:hover:bg-blue-500/10">
+                                <Edit2 className="h-4 w-4" />
+                              </Button>
+                              <Button variant="ghost" size="icon" onClick={() => deleteMenu(menu.menu_id)} className="h-8 w-8 text-rose-500 hover:text-rose-400 dark:hover:bg-rose-500/10">
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      )
+                    })
                   )}
                 </TableBody>
               </Table>
@@ -380,18 +442,34 @@ export default function MenuPage() {
                     <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="ระบุชื่อเมนู..." className="dark:bg-zinc-900 dark:border-zinc-800" />
                   </div>
 
-                  <div className="space-y-2">
-                    <Label className="dark:text-zinc-400">ประเภทการปรุง</Label>
-                    <Select value={menuType} onValueChange={setMenuType}>
-                      {/* ✅ เพิ่ม w-full */}
-                      <SelectTrigger className="w-full dark:bg-zinc-900 dark:border-zinc-800">
-                        <SelectValue placeholder="เลือกประเภท" />
-                      </SelectTrigger>
-                      <SelectContent className="dark:bg-zinc-900 dark:border-zinc-800">
-                        <SelectItem value="cooked">อาหารทำใหม่</SelectItem>
-                        <SelectItem value="ready">สำเร็จรูป</SelectItem>
-                      </SelectContent>
-                    </Select>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label className="dark:text-zinc-400">ประเภท</Label>
+                      <Select value={menuType} onValueChange={setMenuType}>
+                        <SelectTrigger className="w-full dark:bg-zinc-900 dark:border-zinc-800">
+                          <SelectValue placeholder="เลือกประเภท" />
+                        </SelectTrigger>
+                        <SelectContent className="dark:bg-zinc-900 dark:border-zinc-800">
+                          <SelectItem value="cooked">อาหารทำใหม่</SelectItem>
+                          <SelectItem value="ready">สำเร็จรูป</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    {/* Switch ใน Dialog */}
+                    <div className="space-y-2">
+                      <Label className="dark:text-zinc-400">สถานะ</Label>
+                      <div className="flex items-center gap-3 h-10 px-3 rounded-md border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900">
+                        <Switch
+                          checked={isAvailable}
+                          onCheckedChange={setIsAvailable}
+                          id="available-mode"
+                          className="data-[state=checked]:bg-emerald-500"
+                        />
+                        <Label htmlFor="available-mode" className="cursor-pointer text-sm text-zinc-600 dark:text-zinc-400">
+                          {isAvailable ? "พร้อมขาย" : "สินค้าหมด"}
+                        </Label>
+                      </div>
+                    </div>
                   </div>
 
                   <div className="grid grid-cols-2 gap-4">
@@ -402,7 +480,6 @@ export default function MenuPage() {
                     <div className="space-y-2">
                       <Label className="dark:text-zinc-400">หมวดหมู่</Label>
                       <Select value={category} onValueChange={setCategory}>
-                        {/* ✅ เพิ่ม w-full */}
                         <SelectTrigger className="w-full dark:bg-zinc-900 dark:border-zinc-800">
                           <SelectValue placeholder="เลือกหมวดหมู่" />
                         </SelectTrigger>

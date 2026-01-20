@@ -1,12 +1,22 @@
+// app/api/menu/route.js
+
 import { NextResponse } from "next/server";
 import pool from "@/lib/db";
 
 export async function GET() {
   try {
+    // ✅ เพิ่ม available ในการ Select
     const [rows] = await pool.query(
-      "SELECT menu_id, name, price, category, image, type FROM menus ORDER BY category ASC, name ASC"
+      "SELECT menu_id, name, price, category, image, type, available FROM menus ORDER BY category ASC, name ASC"
     );
-    return NextResponse.json(rows);
+
+    // ✅ (Optional) แปลงค่า 1/0 จาก Database ให้เป็น true/false เพื่อให้ Frontend ใช้ง่าย
+    const menus = rows.map(menu => ({
+      ...menu,
+      available: menu.available === 1 || menu.available === true
+    }));
+
+    return NextResponse.json(menus);
   } catch (error) {
     console.error("GET /menu error:", error);
     return NextResponse.json({ error: error.message }, { status: 500 });
@@ -16,7 +26,8 @@ export async function GET() {
 export async function POST(request) {
   try {
     const body = await request.json();
-    const { name, price, category, image, type } = body;
+    // ✅ รับค่า available จาก body
+    const { name, price, category, image, type, available } = body;
 
     if (!name || price === undefined || price === null || !category) {
       return NextResponse.json(
@@ -26,10 +37,13 @@ export async function POST(request) {
     }
 
     const menuType = type || 'cooked';
+    // ✅ กำหนด Default เป็น true ถ้าไม่ได้ส่งมา
+    const isAvailable = available !== false;
 
+    // ✅ เพิ่ม available ลงในคำสั่ง INSERT
     const [result] = await pool.query(
-      "INSERT INTO menus (name, price, category, image, type) VALUES (?, ?, ?, ?, ?)",
-      [name, price, category, image || "", menuType]
+      "INSERT INTO menus (name, price, category, image, type, available) VALUES (?, ?, ?, ?, ?, ?)",
+      [name, price, category, image || "", menuType, isAvailable]
     );
 
     return NextResponse.json(
@@ -40,6 +54,7 @@ export async function POST(request) {
         category,
         image: image || "",
         type: menuType,
+        available: isAvailable, // ✅ ส่งค่ากลับไป
       },
       { status: 201 }
     );
@@ -53,7 +68,8 @@ export async function PUT(request) {
   try {
     const body = await request.json();
     const menu_id = body.menu_id ?? body.id;
-    const { name, price, category, image, type } = body;
+    // ✅ รับค่า available จาก body
+    const { name, price, category, image, type, available } = body;
 
     if (!menu_id || !name || price === undefined || price === null || !category) {
       return NextResponse.json(
@@ -64,9 +80,10 @@ export async function PUT(request) {
 
     const menuType = type || 'cooked';
 
+    // ✅ เพิ่ม available ลงในคำสั่ง UPDATE
     const [result] = await pool.query(
-      "UPDATE menus SET name=?, price=?, category=?, image=?, type=? WHERE menu_id=?",
-      [name, price, category, image || "", menuType, menu_id]
+      "UPDATE menus SET name=?, price=?, category=?, image=?, type=?, available=? WHERE menu_id=?",
+      [name, price, category, image || "", menuType, available, menu_id]
     );
 
     if (result.affectedRows === 0) {
@@ -80,6 +97,7 @@ export async function PUT(request) {
       category,
       image: image || "",
       type: menuType,
+      available, // ✅ ส่งค่ากลับไป
       message: "แก้ไขสำเร็จ"
     });
   } catch (error) {
