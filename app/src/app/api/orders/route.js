@@ -162,7 +162,6 @@ export async function POST(request) {
 
     conn = await pool.getConnection();
 
-    // ✅✅✅ ส่วนที่เพิ่ม: ตรวจสอบสินค้าหมดก่อนเริ่ม Transaction ✅✅✅
     const menuIds = safeItems.map((i) => i.menu_id);
     if (menuIds.length > 0) {
       const [unavailableItems] = await conn.query(
@@ -179,7 +178,6 @@ export async function POST(request) {
         );
       }
     }
-    // ✅✅✅ จบส่วนที่เพิ่ม ✅✅✅
 
     await conn.beginTransaction();
 
@@ -258,7 +256,6 @@ export async function PATCH(request) {
 
     conn = await pool.getConnection();
 
-    // ✅✅✅ ส่วนที่เพิ่ม: ตรวจสอบสินค้าหมดก่อนเริ่ม Transaction ✅✅✅
     const menuIds = safeItems.map((i) => i.menu_id);
     if (menuIds.length > 0) {
       const [unavailableItems] = await conn.query(
@@ -275,7 +272,6 @@ export async function PATCH(request) {
         );
       }
     }
-    // ✅✅✅ จบส่วนที่เพิ่ม ✅✅✅
 
     await conn.beginTransaction();
 
