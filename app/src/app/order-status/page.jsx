@@ -1,4 +1,4 @@
-// app/orders-status-page-split/page.jsx (Final Version)
+// app/orders-status-page-split/page.jsx
 "use client";
 
 import { useState, useEffect, useMemo, useRef } from "react";
@@ -194,12 +194,10 @@ export default function OrdersStatusPageSplit() {
     }
   };
 
-  // ✅ เปลี่ยนจาก Delete เป็น Cancel
   const handleDelete = async (orderItemId) => {
     if (!orderItemId) return;
     if (!confirm("ยืนยันการยกเลิกรายการนี้?")) return;
     try {
-      // ใช้ PATCH action: 'cancel' แทน DELETE
       const res = await fetch("/api/orders-status", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
@@ -207,7 +205,6 @@ export default function OrdersStatusPageSplit() {
       });
       if (!res.ok) throw new Error("Cancel failed");
 
-      // Optimistic Update
       setOrders((prev) =>
         prev.map((o) => ({
           ...o,
@@ -252,12 +249,23 @@ export default function OrdersStatusPageSplit() {
     }
   };
 
-  const getKitchenToggle = (statusRaw) => {
-    const s = (statusRaw || "").trim();
+  // ✅ 1. ปรับ Logic ปุ่มกดสำหรับครัว
+  const getKitchenToggle = (item) => {
+    const s = (item.status || "").trim();
+
+    // ถ้าเป็นของสำเร็จรูป (Ready) ให้ปุ่มเป็น "เตรียมเสร็จ" (Complete) เลย
+    if (item.type === "ready" && s !== "ทำเสร็จ" && s !== "เสิร์ฟแล้ว" && s !== "ยกเลิก") {
+      return { label: "เตรียมเสร็จ", action: "complete", optimistic: "ทำเสร็จ", icon: <Package className="w-4 h-4 mr-1" /> };
+    }
+
     if (s === "กำลังทำ") {
       return { label: "ทำเสร็จ", action: "complete", optimistic: "ทำเสร็จ", icon: <CheckCircle2 className="w-4 h-4 mr-1" /> };
     }
+
+    // ถ้าสถานะเป็น "ทำเสร็จ" แล้ว (รอเสิร์ฟ) ไม่ต้องแสดงปุ่มในหน้าครัว (หรือจะแสดงเป็นปุ่ม Disabled ก็ได้ แต่ซ่อนดีกว่าเพื่อความสะอาด)
     if (s === "ทำเสร็จ" || s === "เสิร์ฟแล้ว" || s === "ยกเลิก") return null;
+
+    // Default: รายการปรุงสดที่ยังไม่เริ่ม
     return { label: "เริ่มทำ", action: "start", optimistic: "กำลังทำ", icon: <ChefHat className="w-4 h-4 mr-1" /> };
   };
 
@@ -270,12 +278,13 @@ export default function OrdersStatusPageSplit() {
     [orders]
   );
 
+  // ✅ 2. ปรับ Filter ของ KitchenQueue ให้แสดง "ทั้งหมด" (ยกเว้นที่เสิร์ฟแล้ว)
   const kitchenQueue = useMemo(() => {
     const filt = (o) => {
       const items = (o.items || [])
-        // ✅ ปรับ Filter: แสดง 'ยกเลิก' ด้วย (เพื่อประวัติ)
-        .filter((i) => i.status !== "เสิร์ฟแล้ว" && i.status !== "ทำเสร็จ")
-        .filter((i) => i.type !== "ready")
+        // แสดงทั้งหมด ยกเว้น "เสิร์ฟแล้ว" (เพื่อให้ครัวเห็นภาพรวมทั้งหมด ทั้งของที่กำลังทำ และของที่เสร็จแล้วรอเสิร์ฟ)
+        .filter((i) => i.status !== "เสิร์ฟแล้ว")
+        // .filter((i) => i.type !== "ready") // ❌ ลบบรรทัดนี้ออก เพื่อให้เห็นของสำเร็จรูปด้วย
         .filter((i) => kitchenCategory === "ทั้งหมด" || i.category === kitchenCategory);
       return { ...o, items };
     };
@@ -285,6 +294,7 @@ export default function OrdersStatusPageSplit() {
   const readyToServe = useMemo(() => {
     const filt = (o) => {
       const items = (o.items || [])
+        // Server เห็นเฉพาะ "ทำเสร็จ" หรือ "Ready" ที่ยังไม่เสิร์ฟ
         .filter((i) => i.status === "ทำเสร็จ" || (i.type === "ready" && i.status !== "เสิร์ฟแล้ว"))
         .filter((i) => serverCategory === "ทั้งหมด" || i.category === serverCategory);
       return { ...o, items };
@@ -301,7 +311,6 @@ export default function OrdersStatusPageSplit() {
     const s = (item.status || "").trim();
     const base = "inline-flex items-center rounded-md px-2 py-1 text-xs font-semibold ring-1 ring-inset";
 
-    // ✅ แสดงสถานะยกเลิก
     if (s === "ยกเลิก") {
       return (
         <span className={`${base} bg-red-100 text-red-700 ring-red-600/20 dark:bg-red-900/30 dark:text-red-400 dark:ring-red-500/30 line-through decoration-red-700/50`}>
@@ -310,7 +319,7 @@ export default function OrdersStatusPageSplit() {
       );
     }
 
-    if (item.type === "ready" && s !== "เสิร์ฟแล้ว") {
+    if (item.type === "ready" && s !== "เสิร์ฟแล้ว" && s !== "ทำเสร็จ") {
       return (
         <span className={`${base} bg-blue-50 text-blue-700 ring-blue-600/20 dark:bg-blue-900/30 dark:text-blue-400 dark:ring-blue-500/30`}>
           <Package className="w-3 h-3 mr-1" /> หยิบได้เลย
@@ -320,7 +329,7 @@ export default function OrdersStatusPageSplit() {
 
     switch (s) {
       case "กำลังทำ": return <span className={`${base} bg-amber-50 text-amber-700 ring-amber-600/20 dark:bg-amber-900/30 dark:text-amber-400 dark:ring-amber-500/30`}><Clock className="w-3 h-3 mr-1" /> กำลังทำ</span>;
-      case "ทำเสร็จ": return <span className={`${base} bg-green-50 text-green-700 ring-green-600/20 dark:bg-green-900/30 dark:text-green-400 dark:ring-green-500/30`}><CheckCircle2 className="w-3 h-3 mr-1" /> พร้อมเสิร์ฟ</span>;
+      case "ทำเสร็จ": return <span className={`${base} bg-green-50 text-green-700 ring-green-600/20 dark:bg-green-900/30 dark:text-green-400 dark:ring-green-500/30`}><CheckCircle2 className="w-3 h-3 mr-1" /> รอเสิร์ฟ</span>;
       case "เสิร์ฟแล้ว": return <span className={`${base} bg-gray-50 text-gray-600 ring-gray-500/10 dark:bg-zinc-800 dark:text-zinc-400 dark:ring-zinc-700`}>เสิร์ฟแล้ว</span>;
       default: return <span className={`${base} bg-slate-50 text-slate-600 ring-slate-500/10 dark:bg-zinc-800 dark:text-zinc-400 dark:ring-zinc-700`}>รอเริ่ม</span>;
     }
@@ -363,8 +372,8 @@ export default function OrdersStatusPageSplit() {
             <div>
               <h1 className="text-sm font-bold text-zinc-900 dark:text-zinc-100">
                 {currentView === "home" && "รายการออเดอร์"}
-                {currentView === "kitchen" && "ระบบครัว"}
-                {currentView === "server" && "ระบบเสิร์ฟ"}
+                {currentView === "kitchen" && "ระบบครัว (รายการทั้งหมด)"}
+                {currentView === "server" && "ระบบเสิร์ฟ (เฉพาะรอเสิร์ฟ)"}
               </h1>
             </div>
           </div>
@@ -401,12 +410,12 @@ export default function OrdersStatusPageSplit() {
                     </div>
                     <div className="text-center">
                       <h2 className="text-2xl font-bold text-gray-800 mb-2 dark:text-white">พนักงานครัว</h2>
-                      <p className="text-gray-500 mb-4 dark:text-zinc-400">จัดการรายการอาหารที่ต้องทำ</p>
+                      <p className="text-gray-500 mb-4 dark:text-zinc-400">ดูรายการอาหารทั้งหมด</p>
                       <span className={`inline-block px-4 py-1 rounded-full text-sm font-medium ${kitchenQueue.length > 0
                         ? 'bg-orange-100 text-orange-700 dark:bg-orange-900/40 dark:text-orange-400'
                         : 'bg-gray-100 text-gray-500 dark:bg-zinc-800 dark:text-zinc-500'
                         }`}>
-                        {kitchenQueue.length > 0 ? `รอทำ ${kitchenQueue.length} ออเดอร์` : 'ไม่มีรายการค้าง'}
+                        {kitchenQueue.length > 0 ? `มีรายการค้าง ${kitchenQueue.length} ออเดอร์` : 'ไม่มีรายการค้าง'}
                       </span>
                     </div>
                   </Card>
@@ -441,7 +450,7 @@ export default function OrdersStatusPageSplit() {
                         <ChefHat className="h-6 w-6 text-emerald-600 dark:text-emerald-400" />
                       </div>
                       <div>
-                        <CardTitle className="text-xl text-gray-800 dark:text-white">รายการอาหารรอทำ</CardTitle>
+                        <CardTitle className="text-xl text-gray-800 dark:text-white">รายการอาหาร (ทั้งหมด)</CardTitle>
                       </div>
                     </div>
                     <Select value={kitchenCategory} onValueChange={setKitchenCategory}>
@@ -481,21 +490,22 @@ export default function OrdersStatusPageSplit() {
                           <TableBody>
                             {kitchenQueue.flatMap((order) =>
                               order.items.map((item) => {
-                                const toggle = getKitchenToggle(item.status);
+                                const toggle = getKitchenToggle(item);
                                 const isProcessing = item.status === "กำลังทำ";
-                                // ✅ ตรวจสอบสถานะยกเลิก
                                 const isCancelled = item.status === "ยกเลิก";
+                                const isDone = item.status === "ทำเสร็จ";
 
                                 return (
                                   <TableRow key={`k-${item.orderItemId}`}
                                     className={`hover:bg-gray-50/50 dark:hover:bg-zinc-900/30 dark:border-zinc-800 transition-opacity duration-300
-                                      ${isCancelled ? "opacity-40 bg-gray-50 dark:bg-zinc-900/50 select-none" : ""}`}
+                                      ${isCancelled ? "opacity-40 bg-gray-50 dark:bg-zinc-900/50 select-none" : ""}
+                                      ${isDone ? "bg-green-50/30 dark:bg-green-900/10" : ""}
+                                    `}
                                   >
                                     <TableCell className="text-center align-top pt-4">
                                       <OrderSourceBadge order={order} />
                                     </TableCell>
 
-                                    {/* ✅ เพิ่ม line-through ถ้าถูกยกเลิก */}
                                     <TableCell className={`font-medium text-gray-900 text-base dark:text-zinc-100 ${isCancelled ? "line-through decoration-gray-400" : ""}`}>
                                       {item.name}
                                     </TableCell>
@@ -511,7 +521,6 @@ export default function OrdersStatusPageSplit() {
                                     <TableCell>{statusChip(item)}</TableCell>
                                     <TableCell>
                                       <div className="flex justify-end gap-2 items-center">
-                                        {/* ซ่อนปุ่มถ้าถูกยกเลิก */}
                                         {!isCancelled && toggle && (
                                           <Button
                                             size="sm"
@@ -525,7 +534,7 @@ export default function OrdersStatusPageSplit() {
                                             {toggle.icon} {toggle.label}
                                           </Button>
                                         )}
-                                        {!isCancelled && (
+                                        {!isCancelled && !isDone && (
                                           <>
                                             <Dialog
                                               open={editData.orderItemId === item.orderItemId}
@@ -656,7 +665,6 @@ export default function OrdersStatusPageSplit() {
                                           <BellRing className="w-4 h-4 mr-1" /> เสิร์ฟแล้ว
                                         </Button>
 
-                                        {/* --- เพิ่มปุ่มลบให้ Server ด้วย --- */}
                                         <Button size="icon" variant="ghost"
                                           className="h-8 w-8 text-gray-400 hover:text-red-600 dark:text-zinc-500 dark:hover:text-red-400 dark:hover:bg-zinc-900"
                                           onClick={() => handleDelete(item.orderItemId)}
