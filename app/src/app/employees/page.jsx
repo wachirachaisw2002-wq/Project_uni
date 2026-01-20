@@ -26,7 +26,7 @@ import {
   SelectTrigger,
   SelectValue
 } from "@/components/ui/select";
-import { Edit2, Trash2, Eye, EyeOff, Search, UserPlus, FileText, X } from "lucide-react";
+import { Edit2, Trash2, Eye, EyeOff, Search, UserPlus, FileText, X, Phone, Mail, MapPin, Calendar, CreditCard, Briefcase, User } from "lucide-react";
 
 export default function Page() {
   const POSITIONS = ["เจ้าของร้าน", "ผู้จัดการร้าน", "พนักงานทั่วไป", "พนักงานในครัว"];
@@ -69,7 +69,6 @@ export default function Page() {
       position: raw?.position ?? "",
       employment_type: raw?.employment_type ?? "",
       start_date: raw?.start_date ? raw.start_date.split('T')[0] : "",
-      shift_availability: raw?.shift_availability ?? "",
       status: raw?.status ?? "",
       salary: Number(raw?.salary ?? 0),
     };
@@ -158,7 +157,6 @@ export default function Page() {
       status: status,
       employment_type: empType,
       start_date: formData.get("start_date") || null,
-      shift_availability: formData.get("shift_availability") || null,
       salary: Number(formData.get("salary")),
     };
 
@@ -188,15 +186,10 @@ export default function Page() {
     return "bg-zinc-500/10 text-zinc-500 dark:bg-zinc-500/5 dark:text-zinc-400";
   }
 
-  // Helper Component สำหรับแสดงข้อมูลเป็นบรรทัดๆ
-  const InfoRow = ({ label, value, isLong = false }) => (
-    <div className={`flex flex-col gap-1 ${isLong ? 'col-span-2' : ''}`}>
-      <span className="text-xs text-zinc-500 uppercase tracking-wide">{label}</span>
-      <span className="text-sm font-medium text-zinc-900 dark:text-zinc-200 break-words">
-        {value || "-"}
-      </span>
-    </div>
-  );
+  // Helper สำหรับดึงตัวอักษรย่อชื่อ
+  const getInitials = (name) => {
+    return name ? name.charAt(0).toUpperCase() : "?";
+  };
 
   return (
     <SidebarProvider>
@@ -232,7 +225,6 @@ export default function Page() {
                 <div className="flex flex-col gap-1.5">
                   <Label className="text-xs font-medium text-zinc-500 uppercase tracking-wider">ตำแหน่งงาน</Label>
                   <Select value={activePosition} onValueChange={setActivePosition}>
-                    {/* ✅ เพิ่ม w-full ที่ SelectTrigger */}
                     <SelectTrigger className="w-full dark:bg-zinc-950 dark:border-zinc-800">
                       <SelectValue placeholder="ทั้งหมด" />
                     </SelectTrigger>
@@ -245,7 +237,6 @@ export default function Page() {
                 <div className="flex flex-col gap-1.5">
                   <Label className="text-xs font-medium text-zinc-500 uppercase tracking-wider">สถานะการทำงาน</Label>
                   <Select value={activeStatus} onValueChange={setActiveStatus}>
-                    {/* ✅ เพิ่ม w-full ที่ SelectTrigger */}
                     <SelectTrigger className="w-full dark:bg-zinc-950 dark:border-zinc-800">
                       <SelectValue placeholder="ทั้งหมด" />
                     </SelectTrigger>
@@ -284,8 +275,8 @@ export default function Page() {
                       <TableRow key={emp.id || idx} className="dark:border-zinc-800 dark:hover:bg-zinc-800/40">
                         <TableCell>
                           <div className="font-semibold text-zinc-800 dark:text-zinc-100">{emp.name_th}</div>
-                          <div className="text-[10px] text-zinc-500 uppercase">{emp.name_en}</div>
-                          {emp.id_card_number && <div className="text-[10px] text-zinc-400 mt-0.5">ID: {emp.id_card_number}</div>}
+                          <div className="text-xs text-zinc-500 uppercase">{emp.name_en}</div>
+                          {/* ✅ 1. เอา ID ออกจากตรงนี้เรียบร้อย */}
                         </TableCell>
                         <TableCell className="dark:text-zinc-300">{emp.position}</TableCell>
                         <TableCell>
@@ -329,78 +320,114 @@ export default function Page() {
             </CardContent>
           </Card>
 
-          {/* Dialog สำหรับ View Data (เพิ่ม max-h และ overflow-y-auto แล้ว) */}
+          {/* ✅ 3. ปรับดีไซน์ Dialog ดูข้อมูลให้สะอาดตา */}
           <Dialog open={viewOpen} onOpenChange={setViewOpen}>
-            <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto dark:bg-zinc-950 dark:border-zinc-800">
-              <DialogHeader>
-                <DialogTitle className="flex items-center gap-2 text-xl dark:text-zinc-100">
-                  <FileText className="h-5 w-5 text-orange-500" />
-                  รายละเอียดพนักงาน
-                </DialogTitle>
-                <DialogDescription>ข้อมูลทั้งหมดของพนักงาน</DialogDescription>
-              </DialogHeader>
-
+            <DialogContent className="max-w-2xl overflow-hidden p-0 gap-0 dark:bg-zinc-950 dark:border-zinc-800 rounded-2xl">
+              
               {viewingEmployee && (
-                <div className="space-y-6 py-2">
-                  <div className="flex flex-col items-center justify-center py-4 bg-zinc-50 dark:bg-zinc-900/50 rounded-lg border dark:border-zinc-800">
-                    <h2 className="text-2xl font-bold text-zinc-800 dark:text-white">{viewingEmployee.name_th}</h2>
-                    <p className="text-sm text-zinc-500 uppercase font-medium tracking-wider">{viewingEmployee.name_en}</p>
-                    <Badge className={`mt-3 ${getStatusBadge(viewingEmployee.status)}`}>{viewingEmployee.status}</Badge>
+                <>
+                  {/* Header Area */}
+                  <div className="bg-zinc-50 dark:bg-zinc-900 px-8 py-8 flex flex-col items-center border-b dark:border-zinc-800">
+                    <div className="h-20 w-20 rounded-full bg-orange-100 dark:bg-orange-900/30 text-orange-600 dark:text-orange-400 flex items-center justify-center text-3xl font-bold mb-4 shadow-sm">
+                      {getInitials(viewingEmployee.name_en || viewingEmployee.name_th)}
+                    </div>
+                    <h2 className="text-2xl font-bold text-zinc-900 dark:text-white">{viewingEmployee.name_th}</h2>
+                    <p className="text-sm text-zinc-500 font-medium tracking-wide uppercase mt-1 mb-3">{viewingEmployee.name_en}</p>
+                    <Badge className={`${getStatusBadge(viewingEmployee.status)} px-3 py-1`}>{viewingEmployee.status}</Badge>
                   </div>
 
-                  <div className="grid grid-cols-2 gap-x-8 gap-y-6">
-                    {/* ข้อมูลส่วนตัว */}
-                    <div className="col-span-2">
-                      <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100 mb-3 flex items-center gap-2">
-                        <span className="w-1 h-4 bg-orange-500 rounded-full"></span> ข้อมูลส่วนตัว
+                  {/* Scrollable Content */}
+                  <div className="max-h-[60vh] overflow-y-auto px-8 py-6 space-y-8">
+                    
+                    {/* Section: ข้อมูลส่วนตัว */}
+                    <div>
+                      <h3 className="text-sm font-semibold text-zinc-400 uppercase tracking-wider mb-4 flex items-center gap-2">
+                        <User className="w-4 h-4" /> ข้อมูลส่วนตัว
                       </h3>
-                      <div className="grid grid-cols-2 gap-4 pl-3">
-                        <InfoRow label="ชื่อเล่น" value={viewingEmployee.nickname} />
-                        <InfoRow label="เลขบัตรประชาชน" value={viewingEmployee.id_card_number} />
-                        <InfoRow label="วันเกิด" value={viewingEmployee.birth_date ? new Date(viewingEmployee.birth_date).toLocaleDateString('th-TH', { dateStyle: 'long' }) : '-'} />
-                        <InfoRow label="เบอร์โทรศัพท์" value={viewingEmployee.phone} />
-                        <InfoRow label="Line ID" value={viewingEmployee.line_id} />
-                        <InfoRow label="ที่อยู่" value={viewingEmployee.address} isLong />
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-6 gap-x-8">
+                         <div className="flex flex-col gap-1">
+                            <span className="text-xs text-zinc-400">ชื่อเล่น</span>
+                            <span className="text-sm font-medium">{viewingEmployee.nickname || "-"}</span>
+                         </div>
+                         <div className="flex flex-col gap-1">
+                            <span className="text-xs text-zinc-400">วันเกิด</span>
+                            <span className="text-sm font-medium">{viewingEmployee.birth_date ? new Date(viewingEmployee.birth_date).toLocaleDateString('th-TH', { dateStyle: 'long' }) : '-'}</span>
+                         </div>
+                         <div className="flex flex-col gap-1">
+                            <span className="text-xs text-zinc-400">เบอร์โทรศัพท์</span>
+                            <div className="flex items-center gap-2">
+                              <Phone className="w-3 h-3 text-zinc-400" />
+                              <span className="text-sm font-medium">{viewingEmployee.phone}</span>
+                            </div>
+                         </div>
+                         <div className="flex flex-col gap-1">
+                            <span className="text-xs text-zinc-400">อีเมล</span>
+                            <div className="flex items-center gap-2">
+                              <Mail className="w-3 h-3 text-zinc-400" />
+                              <span className="text-sm font-medium break-all">{viewingEmployee.email}</span>
+                            </div>
+                         </div>
+                         <div className="flex flex-col gap-1">
+                            <span className="text-xs text-zinc-400">Line ID</span>
+                            <span className="text-sm font-medium text-emerald-600">{viewingEmployee.line_id || "-"}</span>
+                         </div>
+                         <div className="flex flex-col gap-1">
+                            <span className="text-xs text-zinc-400">เลขบัตรประชาชน</span>
+                            <div className="flex items-center gap-2">
+                              <CreditCard className="w-3 h-3 text-zinc-400" />
+                              <span className="text-sm font-medium">{viewingEmployee.id_card_number || "-"}</span>
+                            </div>
+                         </div>
+                         <div className="col-span-1 sm:col-span-2 flex flex-col gap-1">
+                            <span className="text-xs text-zinc-400">ที่อยู่</span>
+                            <div className="flex items-start gap-2">
+                              <MapPin className="w-3 h-3 text-zinc-400 mt-1 shrink-0" />
+                              <span className="text-sm font-medium leading-relaxed">{viewingEmployee.address || "-"}</span>
+                            </div>
+                         </div>
                       </div>
                     </div>
 
-                    <Separator className="col-span-2 dark:bg-zinc-800" />
+                    <Separator />
 
-                    {/* ข้อมูลการทำงาน */}
-                    <div className="col-span-2">
-                      <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100 mb-3 flex items-center gap-2">
-                        <span className="w-1 h-4 bg-blue-500 rounded-full"></span> ข้อมูลการทำงาน
+                    {/* Section: การทำงาน */}
+                    <div>
+                      <h3 className="text-sm font-semibold text-zinc-400 uppercase tracking-wider mb-4 flex items-center gap-2">
+                        <Briefcase className="w-4 h-4" /> ข้อมูลการทำงาน
                       </h3>
-                      <div className="grid grid-cols-2 gap-4 pl-3">
-                        <InfoRow label="ตำแหน่ง" value={viewingEmployee.position} />
-                        <InfoRow label="ประเภทการจ้าง" value={viewingEmployee.employment_type} />
-                        <InfoRow label="เริ่มงานวันที่" value={viewingEmployee.start_date ? new Date(viewingEmployee.start_date).toLocaleDateString('th-TH', { dateStyle: 'long' }) : '-'} />
-                        <InfoRow label="เงินเดือน/ค่าจ้าง" value={`${viewingEmployee.salary.toLocaleString()} บาท`} />
-                        <InfoRow label="ความพร้อมเข้ากะ (Shift)" value={viewingEmployee.shift_availability} isLong />
-                      </div>
-                    </div>
-
-                    <Separator className="col-span-2 dark:bg-zinc-800" />
-
-                    {/* ข้อมูลบัญชี */}
-                    <div className="col-span-2">
-                      <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100 mb-3 flex items-center gap-2">
-                        <span className="w-1 h-4 bg-zinc-500 rounded-full"></span> บัญชีผู้ใช้
-                      </h3>
-                      <div className="grid grid-cols-2 gap-4 pl-3">
-                        <InfoRow label="อีเมล (Username)" value={viewingEmployee.email} isLong />
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-6 gap-x-8">
+                         <div className="flex flex-col gap-1">
+                            <span className="text-xs text-zinc-400">ตำแหน่ง</span>
+                            <span className="text-sm font-medium">{viewingEmployee.position}</span>
+                         </div>
+                         <div className="flex flex-col gap-1">
+                            <span className="text-xs text-zinc-400">ประเภทการจ้าง</span>
+                            <span className="text-sm font-medium">{viewingEmployee.employment_type}</span>
+                         </div>
+                         <div className="flex flex-col gap-1">
+                            <span className="text-xs text-zinc-400">วันที่เริ่มงาน</span>
+                            <div className="flex items-center gap-2">
+                              <Calendar className="w-3 h-3 text-zinc-400" />
+                              <span className="text-sm font-medium">{viewingEmployee.start_date ? new Date(viewingEmployee.start_date).toLocaleDateString('th-TH', { dateStyle: 'long' }) : '-'}</span>
+                            </div>
+                         </div>
+                         <div className="flex flex-col gap-1">
+                            <span className="text-xs text-zinc-400">เงินเดือน/ค่าจ้าง</span>
+                            <span className="text-sm font-bold text-zinc-900 dark:text-white">{viewingEmployee.salary.toLocaleString()} บาท</span>
+                         </div>
                       </div>
                     </div>
                   </div>
-                </div>
+
+                  <div className="p-6 bg-zinc-50 dark:bg-zinc-900 border-t dark:border-zinc-800 flex justify-end">
+                    <Button variant="outline" onClick={() => setViewOpen(false)} className="w-full sm:w-auto">ปิดหน้าต่าง</Button>
+                  </div>
+                </>
               )}
-              <DialogFooter className="sticky bottom-0 bg-white dark:bg-zinc-950 pt-4 border-t dark:border-zinc-800">
-                <Button onClick={() => setViewOpen(false)} className="w-full sm:w-auto">ปิดหน้าต่าง</Button>
-              </DialogFooter>
             </DialogContent>
           </Dialog>
 
-          {/* Dialog Form สำหรับ Add/Edit (อันเดิม) */}
+          {/* Dialog Form สำหรับ Add/Edit */}
           <Dialog open={open} onOpenChange={setOpen}>
             <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto dark:bg-zinc-950 dark:border-zinc-800">
               <DialogHeader>
@@ -504,10 +531,7 @@ export default function Page() {
                       <Label className="dark:text-zinc-400">อัตราค่าจ้าง (บาท)</Label>
                       <Input type="number" name="salary" defaultValue={editingEmployee?.salary} required className="dark:bg-zinc-900 dark:border-zinc-800" />
                     </div>
-                    <div className="col-span-1 md:col-span-2 space-y-2">
-                      <Label className="dark:text-zinc-400">วัน/เวลา ที่สะดวกเข้างาน (Shift Availability)</Label>
-                      <Input name="shift_availability" defaultValue={editingEmployee?.shift_availability || ""} placeholder="เช่น จันทร์-ศุกร์ 9.00-18.00" className="dark:bg-zinc-900 dark:border-zinc-800" />
-                    </div>
+                    {/* ✅ 2. เอา Shift Availability ออกจากฟอร์มแล้ว */}
                   </div>
                 </div>
 

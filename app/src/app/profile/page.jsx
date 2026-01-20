@@ -14,9 +14,16 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Separator } from "@/components/ui/separator"; 
 import { 
   Loader2, Save, MapPin, Phone, Briefcase, 
-  CreditCard, Clock, Eye, EyeOff, Calendar,
+  CreditCard, Clock, Eye, EyeOff, Calendar as CalendarIcon, // เปลี่ยนชื่อ alias เพื่อไม่ให้ชนกับ Component Calendar
   Mail, Shield, CheckCircle2, Building2
 } from "lucide-react";
+
+// --- เพิ่ม Imports สำหรับปฏิทิน ---
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { format } from "date-fns";
+import { th } from "date-fns/locale";
+import { cn } from "@/lib/utils"; // ปกติจะมีใน shadcn ถ้าไม่มีให้ลบออกและเขียน class string ตรงๆ
 
 export default function ProfilePage() {
   const router = useRouter();
@@ -87,6 +94,14 @@ export default function ProfilePage() {
        return;
     }
     setFormData(prev => ({ ...prev, [name]: value }));
+  };
+
+  // --- เพิ่มฟังก์ชันสำหรับจัดการการเลือกวันที่ ---
+  const handleDateSelect = (date) => {
+    if (!date) return;
+    // แปลง Date object ให้เป็น string format yyyy-MM-dd เพื่อเก็บลง formData
+    const formattedDate = format(date, "yyyy-MM-dd");
+    setFormData(prev => ({ ...prev, birth_date: formattedDate }));
   };
 
   const handleSubmit = async (e) => {
@@ -220,7 +235,7 @@ export default function ProfilePage() {
 
                      <div className="flex items-start gap-4">
                         <div className="p-3 bg-purple-50 dark:bg-purple-900/20 rounded-xl text-purple-600 dark:text-purple-400">
-                           <Calendar className="w-6 h-6" />
+                           <CalendarIcon className="w-6 h-6" />
                         </div>
                         <div>
                            <p className="text-xs text-zinc-500 mb-1">เริ่มงานเมื่อ</p>
@@ -296,10 +311,42 @@ export default function ProfilePage() {
                            <Label className="text-zinc-500">ชื่อเล่น</Label>
                            <Input name="nickname" value={formData.nickname} onChange={handleChange} className="bg-zinc-50 border-zinc-200 rounded-xl focus:bg-white" />
                         </div>
-                        <div className="space-y-2">
+                        
+                        {/* ✅ แก้ไขส่วนวันเกิดเป็น Calendar Component */}
+                        <div className="space-y-2 flex flex-col">
                            <Label className="text-zinc-500">วัน/เดือน/ปี เกิด</Label>
-                           <Input type="date" name="birth_date" value={formData.birth_date} onChange={handleChange} className="bg-zinc-50 border-zinc-200 rounded-xl focus:bg-white" />
+                           <Popover>
+                             <PopoverTrigger asChild>
+                               <Button
+                                 variant={"outline"}
+                                 className={cn(
+                                   "w-full pl-3 text-left font-normal bg-zinc-50 border-zinc-200 rounded-xl h-10 hover:bg-white",
+                                   !formData.birth_date && "text-muted-foreground"
+                                 )}
+                               >
+                                 {formData.birth_date ? (
+                                   format(new Date(formData.birth_date), "dd/MM/yyyy", { locale: th })
+                                 ) : (
+                                   <span>เลือกวันที่</span>
+                                 )}
+                                 <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                               </Button>
+                             </PopoverTrigger>
+                             <PopoverContent className="w-auto p-0" align="start">
+                               <Calendar
+                                 mode="single"
+                                 selected={formData.birth_date ? new Date(formData.birth_date) : undefined}
+                                 onSelect={handleDateSelect}
+                                 disabled={(date) =>
+                                   date > new Date() || date < new Date("1900-01-01")
+                                 }
+                                 initialFocus
+                                 locale={th}
+                               />
+                             </PopoverContent>
+                           </Popover>
                         </div>
+
                         <div className="col-span-1 md:col-span-2 space-y-2">
                            <Label className="text-zinc-500">เลขบัตรประชาชน</Label>
                            <div className="relative">
@@ -353,37 +400,6 @@ export default function ProfilePage() {
                      </CardContent>
                   </Card>
                </section>
-
-               {/* Work Schedule Form */}
-               <section>
-                  <h3 className="text-lg font-semibold text-zinc-900 dark:text-zinc-100 mb-4 flex items-center gap-2">
-                     <div className="w-1 h-5 bg-purple-500 rounded-full"></div>
-                     ตารางงาน (Shift)
-                  </h3>
-                  <Card className="border-none shadow-sm bg-white dark:bg-zinc-900 rounded-2xl ring-1 ring-zinc-100 dark:ring-zinc-800">
-                     <CardContent className="p-6 md:p-8">
-                        <div className="space-y-2">
-                           <Label className="text-zinc-500 flex items-center justify-between">
-                              <span>ช่วงเวลาที่สะดวกเข้างาน</span>
-                              <Badge variant="outline" className="font-normal text-xs bg-green-50 text-green-700 border-green-200">
-                                 คุณสามารถแก้ไขส่วนนี้ได้
-                              </Badge>
-                           </Label>
-                           <div className="relative">
-                              <Clock className="absolute left-3 top-2.5 h-4 w-4 text-zinc-400" />
-                              <Input 
-                                 name="shift_availability" 
-                                 value={formData.shift_availability} 
-                                 onChange={handleChange} 
-                                 className="pl-10 bg-zinc-50 border-zinc-200 rounded-xl focus:bg-white"
-                                 placeholder="เช่น จันทร์-ศุกร์ 09:00 - 18:00"
-                              />
-                           </div>
-                        </div>
-                     </CardContent>
-                  </Card>
-               </section>
-
             </div>
           </div>
         </main>
