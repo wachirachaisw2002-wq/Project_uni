@@ -362,7 +362,7 @@ export default function OrdersStatusPageSplit() {
             <SidebarTrigger />
             <div>
               <h1 className="text-sm font-bold text-zinc-900 dark:text-zinc-100">
-                {currentView === "home" && "เลือกหน้าที่ต้องการ"}
+                {currentView === "home" && "รายการออเดอร์"}
                 {currentView === "kitchen" && "ระบบครัว"}
                 {currentView === "server" && "ระบบเสิร์ฟ"}
               </h1>
@@ -421,7 +421,7 @@ export default function OrdersStatusPageSplit() {
                     </div>
                     <div className="text-center">
                       <h2 className="text-2xl font-bold text-gray-800 mb-2 dark:text-white">พนักงานเสิร์ฟ</h2>
-                      <p className="text-gray-500 mb-4 dark:text-zinc-400">ดูรายการอาหารที่พร้อมเสิร์ฟ</p>
+                      <p className="text-gray-500 mb-4 dark:text-zinc-400">ดูรายการที่พร้อมเสิร์ฟ</p>
                       <span className={`inline-block px-4 py-1 rounded-full text-sm font-medium ${readyToServe.length > 0
                         ? 'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-400'
                         : 'bg-gray-100 text-gray-500 dark:bg-zinc-800 dark:text-zinc-500'

@@ -30,13 +30,13 @@ import Logo from "@/components/ui/logo";
 
 const sidebarItems = [
   { href: "/table", icon: <FileText size={20} />, label: "รับออเดอร์" },
-  { href: "/order-status", icon: <ClipboardList size={20} />, label: "คำสั่งรายการอาหาร" },
+  { href: "/order-status", icon: <ClipboardList size={20} />, label: "รายการออเดอร์" },
   { href: "/history", icon: <History size={20} />, label: "ประวัติยอดการสั่งอาหาร" },
   { href: "/dashboard", icon: <BarChart2 size={20} />, label: "สรุปยอดขาย" },
-  { href: "/menu", icon: <Utensils size={20} />, label: "รายการอาหาร" },
-  { href: "/employees", icon: <Users size={20} />, label: "ข้อมูลพนักงาน" },
   { href: "/attendance", icon: <Clock size={20} />, label: "บันทึกเวลาทำงาน" },
   { href: "/time-report", icon: <FileClock size={20} />, label: "รายงานเวลาทำงาน" },
+  { href: "/menu", icon: <Utensils size={20} />, label: "รายการอาหาร" },
+  { href: "/employees", icon: <Users size={20} />, label: "ข้อมูลพนักงาน" },
 ];
 
 export function AppSidebar() {

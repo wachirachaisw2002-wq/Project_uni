@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { AppSidebar } from "@/components/app-sidebar";
 import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { Card, CardContent } from "@/components/ui/card";
@@ -26,7 +26,7 @@ import {
 } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Calendar } from "@/components/ui/calendar"; // เรียกใช้ Calendar ที่เราแก้เป็น Dropdown แล้ว
+import { Calendar } from "@/components/ui/calendar";
 import { format } from "date-fns";
 import { th } from "date-fns/locale";
 import { Badge } from "@/components/ui/badge";
@@ -69,25 +69,27 @@ export default function Page() {
     fetchMe();
   }, []);
 
-  // ดึงประวัติบิล
-  useEffect(() => {
-    const fetchOrders = async () => {
-      setLoading(true);
-      try {
-        const res = await fetch("/api/bills-history");
-        const data = await res.json();
-        const list = (Array.isArray(data) ? data : []).map((o) => ({
-          ...o,
-          created: o.created_at ? new Date(o.created_at) : null,
-          dateOnly: o.created_at ? format(new Date(o.created_at), "dd/MM/yyyy") : "",
-          timeOnly: o.created_at ? format(new Date(o.created_at), "HH:mm") : "",
-          cashierName: o.name_th || o.cashier_name || "ไม่ระบุ",
-        }));
-        setOrders(list);
-      } catch (err) { setOrders([]); } finally { setLoading(false); }
-    };
-    fetchOrders();
+  // ✅ ย้าย fetchOrders ออกมาข้างนอกเพื่อให้เรียกใช้ซ้ำได้ (เช่น ตอนบันทึกเสร็จ)
+  const fetchOrders = useCallback(async () => {
+    setLoading(true);
+    try {
+      const res = await fetch("/api/bills-history");
+      const data = await res.json();
+      const list = (Array.isArray(data) ? data : []).map((o) => ({
+        ...o,
+        created: o.created_at ? new Date(o.created_at) : null,
+        dateOnly: o.created_at ? format(new Date(o.created_at), "dd/MM/yyyy") : "",
+        timeOnly: o.created_at ? format(new Date(o.created_at), "HH:mm") : "",
+        cashierName: o.name_th || o.cashier_name || "ไม่ระบุ",
+      }));
+      setOrders(list);
+    } catch (err) { setOrders([]); } finally { setLoading(false); }
   }, []);
+
+  // เรียกใช้ครั้งแรก
+  useEffect(() => {
+    fetchOrders();
+  }, [fetchOrders]);
 
   // ดึงรายการอาหารในบิล
   const fetchBillItems = async (billId) => {
@@ -101,18 +103,26 @@ export default function Page() {
     } catch { setBillItems([]); return []; } finally { setLoadingItems(false); }
   };
 
-  // เปิด Dialog แก้ไข
+  // ✅ เปิด Dialog แก้ไข พร้อม Normalize ข้อมูล (qty)
   const handleOpenEdit = async () => {
     const bill = orders.find(o => o.bill_id === selectedBillId);
     if (!bill) return;
     const items = await fetchBillItems(selectedBillId);
+
     setEditPaymentType(bill.payment_type || "เงินสด");
-    setEditingItems(items.map(i => ({ ...i })));
+
+    // Normalize: แปลง quantity หรือ qty ให้เป็น qty ตัวเดียว เพื่อความง่ายในการจัดการ
+    setEditingItems(items.map(i => ({
+      ...i,
+      qty: Number(i.qty || i.quantity || 0),
+      price: Number(i.price || 0)
+    })));
+
     setEditReason("");
     setEditDialogOpen(true);
   };
 
-  // บันทึกการแก้ไข (Void บิลเก่า + สร้างบิลใหม่)
+  // ✅ บันทึกการแก้ไข (ใช้ fetchOrders ใหม่แทน window.reload)
   const handleSaveEdit = async () => {
     if (!editReason.trim()) return alert("กรุณาระบุสาเหตุ");
     setIsProcessing(true);
@@ -125,12 +135,17 @@ export default function Page() {
           type: 'EDIT',
           user_id: currentEmployee.id,
           payment_type: editPaymentType,
-          total_price: editingItems.reduce((s, i) => s + ((i.qty || i.quantity || 0) * i.price), 0),
+          total_price: editingItems.reduce((s, i) => s + (i.qty * i.price), 0),
           items: editingItems,
           void_reason: editReason
         }),
       });
-      if (res.ok) window.location.reload();
+
+      if (res.ok) {
+        await fetchOrders(); // ดึงข้อมูลใหม่
+        setEditDialogOpen(false); // ปิด Dialog แก้ไข
+        setOpen(false); // ปิด Dialog รายละเอียด
+      }
     } catch (e) { alert("เกิดข้อผิดพลาด"); } finally { setIsProcessing(false); }
   };
 
@@ -184,12 +199,10 @@ export default function Page() {
               />
             </div>
 
-            {/* ✅ ส่วนปฏิทินที่ปรับปรุงแล้ว (ใช้ Dropdown จาก Component) */}
-            {/* ✅ ส่วนปฏิทินที่เรียกใช้จาก components/ui/calendar */}
             <Popover>
               <PopoverTrigger asChild>
-                <Button 
-                  variant="outline" 
+                <Button
+                  variant="outline"
                   className={`h-10 border-zinc-200 dark:border-zinc-800 dark:bg-zinc-900 rounded-xl transition-all
                     ${selectedDate ? "text-emerald-600 dark:text-emerald-400 border-emerald-500/30 bg-emerald-50/50 dark:bg-emerald-900/10" : "text-zinc-500 dark:text-zinc-300"}
                   `}
@@ -198,8 +211,8 @@ export default function Page() {
                   {selectedDate ? format(selectedDate, "d MMM yyyy", { locale: th }) : "เลือกวันที่"}
                 </Button>
               </PopoverTrigger>
-              <PopoverContent 
-                className="w-auto p-4 rounded-3xl shadow-2xl border-none bg-white/95 dark:bg-zinc-900/95 backdrop-blur-xl ring-1 ring-zinc-200 dark:ring-zinc-800" 
+              <PopoverContent
+                className="w-auto p-4 rounded-3xl shadow-2xl border-none bg-white/95 dark:bg-zinc-900/95 backdrop-blur-xl ring-1 ring-zinc-200 dark:ring-zinc-800"
                 align="end"
               >
                 <Calendar
@@ -208,11 +221,6 @@ export default function Page() {
                   onSelect={(d) => { setSelectedDate(d); setPage(1); }}
                   locale={th}
                   className="p-0"
-                  
-                  // ไม่ต้องใส่ captionLayout หรือ components={{Dropdown...}} ตรงนี้แล้ว
-                  // เพราะใน components/ui/calendar.jsx จัดการให้แล้ว
-                  
-                  // ใส่แค่ classNames เพื่อเปลี่ยนสีวันที่เลือกเป็นสีเขียว (Emerald) ตามธีมร้าน
                   classNames={{
                     day_selected: "bg-emerald-500 text-white hover:bg-emerald-600 hover:text-white focus:bg-emerald-600 focus:text-white shadow-lg shadow-emerald-500/30 scale-100",
                     day_today: "bg-zinc-100 dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 font-bold border border-zinc-200 dark:border-zinc-700",
@@ -448,26 +456,25 @@ export default function Page() {
                               <Button
                                 variant="ghost" size="icon" className="h-7 w-7"
                                 onClick={() => {
-                                  const arr = [...editingItems];
-                                  const currentQty = Number(arr[idx].qty || arr[idx].quantity || 0);
-                                  if (currentQty > 1) {
-                                    if (arr[idx].qty !== undefined) arr[idx].qty = currentQty - 1;
-                                    else arr[idx].quantity = currentQty - 1;
-                                    setEditingItems(arr);
-                                  }
+                                  // ✅ ปรับปรุง Logic: ใช้ .map เพื่อ update แบบ Immutable
+                                  setEditingItems(prev => prev.map((currItem, i) => {
+                                    if (i !== idx) return currItem;
+                                    const currentQty = currItem.qty; // มั่นใจได้ว่าเป็น qty เพราะ normalize มาแล้ว
+                                    return { ...currItem, qty: Math.max(1, currentQty - 1) };
+                                  }));
                                 }}
                               >
                                 <Minus className="h-3 w-3" />
                               </Button>
-                              <span className="text-sm font-bold w-8 text-center">{item.qty || item.quantity}</span>
+                              <span className="text-sm font-bold w-8 text-center">{item.qty}</span>
                               <Button
                                 variant="ghost" size="icon" className="h-7 w-7"
                                 onClick={() => {
-                                  const arr = [...editingItems];
-                                  const currentQty = Number(arr[idx].qty || arr[idx].quantity || 0);
-                                  if (arr[idx].qty !== undefined) arr[idx].qty = currentQty + 1;
-                                  else arr[idx].quantity = currentQty + 1;
-                                  setEditingItems(arr);
+                                  // ✅ ปรับปรุง Logic: ใช้ .map เพื่อ update แบบ Immutable
+                                  setEditingItems(prev => prev.map((currItem, i) => {
+                                    if (i !== idx) return currItem;
+                                    return { ...currItem, qty: currItem.qty + 1 };
+                                  }));
                                 }}
                               >
                                 <Plus className="h-3 w-3" />
@@ -477,7 +484,7 @@ export default function Page() {
 
                           <TableCell className="text-right text-xs text-zinc-500">{Number(item.price).toLocaleString()}</TableCell>
                           <TableCell className="text-right font-bold text-sm">
-                            {((Number(item.qty) || Number(item.quantity) || 0) * Number(item.price)).toLocaleString()}
+                            {(item.qty * Number(item.price)).toLocaleString()}
                           </TableCell>
                           <TableCell>
                             <Button variant="ghost" size="icon" onClick={() => setEditingItems(prev => prev.filter((_, i) => i !== idx))} className="text-zinc-400 hover:text-red-500 h-8 w-8">
@@ -510,7 +517,7 @@ export default function Page() {
                     <span className="text-[10px] font-black text-emerald-600 dark:text-emerald-500 uppercase tracking-widest">ยอดรวมสุทธิใหม่</span>
                     <div className="flex items-baseline gap-1.5">
                       <span className="text-4xl font-black text-emerald-500">
-                        {editingItems.reduce((s, i) => s + ((Number(i.qty) || Number(i.quantity) || 0) * Number(i.price)), 0).toLocaleString()}
+                        {editingItems.reduce((s, i) => s + (i.qty * Number(i.price)), 0).toLocaleString()}
                       </span>
                       <span className="text-lg font-bold text-emerald-500">฿</span>
                     </div>

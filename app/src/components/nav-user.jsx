@@ -102,7 +102,7 @@ export function NavUser({ user }) {
               ) : (
                 <Moon className="mr-2 h-4 w-4" />
               )}
-              {theme === "dark" ? "ธีมสว่าง" : "ธีมมืด"}
+              {theme === "dark" ? "สว่าง" : "มืด"}
             </DropdownMenuItem>
 
             <DropdownMenuSeparator />

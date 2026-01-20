@@ -6,7 +6,7 @@ import pool from "@/lib/db";
 async function getTableColumns(connection) {
   const [cols] = await connection.query(
     `SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS 
-     WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'bills'`
+      WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'bills'`
   );
   return cols.map(c => c.COLUMN_NAME);
 }
@@ -27,7 +27,8 @@ export async function GET() {
 
     if (columns.includes('status')) fields.push("b.status");
     if (columns.includes('void_reason')) fields.push("b.void_reason");
-    if (columns.includes('customer_name')) fields.push("b.customer_name");
+
+    fields.push("(SELECT customer_name FROM orders WHERE bill_id = b.bill_id LIMIT 1) AS customer_name");
 
     if (columns.includes('remark')) fields.push("b.remark");
 
@@ -81,7 +82,15 @@ export async function PATCH(req) {
 
       await connection.beginTransaction();
       try {
-        const [oldBill] = await connection.query("SELECT table_id, customer_name, remark FROM bills WHERE bill_id = ?", [bill_id]);
+        const [oldBill] = await connection.query(`
+          SELECT 
+            table_id, 
+            remark,
+            (SELECT customer_name FROM orders WHERE bill_id = bills.bill_id LIMIT 1) AS customer_name
+          FROM bills 
+          WHERE bill_id = ?
+        `, [bill_id]);
+
         if (!oldBill.length) throw new Error("ไม่พบข้อมูลบิลเดิม");
 
         await connection.query(
@@ -92,9 +101,9 @@ export async function PATCH(req) {
         const cashReceived = payment_type === 'เงินสด' ? total_price : 0;
 
         const [insertRes] = await connection.query(
-          `INSERT INTO bills (table_id, customer_name, remark, total_price, payment_type, status, created_at, closed_by_id, cash_received, change_amount) 
-           VALUES (?, ?, ?, ?, ?, 'COMPLETED', NOW(), ?, ?, 0)`,
-          [oldBill[0].table_id, oldBill[0].customer_name, oldBill[0].remark, total_price, payment_type, user_id, cashReceived]
+          `INSERT INTO bills (table_id, remark, total_price, payment_type, status, created_at, closed_by_id, cash_received, change_amount) 
+            VALUES (?, ?, ?, ?, 'COMPLETED', NOW(), ?, ?, 0)`,
+          [oldBill[0].table_id, oldBill[0].remark, total_price, payment_type, user_id, cashReceived]
         );
         const newId = insertRes.insertId;
 
