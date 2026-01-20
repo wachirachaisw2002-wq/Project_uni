@@ -28,21 +28,69 @@ import {
 // นำเข้า Component Logo
 import Logo from "@/components/ui/logo";
 
-const sidebarItems = [
-  { href: "/table", icon: <FileText size={20} />, label: "รับออเดอร์" },
-  { href: "/order-status", icon: <ClipboardList size={20} />, label: "รายการออเดอร์" },
-  { href: "/history", icon: <History size={20} />, label: "ประวัติยอดการสั่งอาหาร" },
-  { href: "/dashboard", icon: <BarChart2 size={20} />, label: "สรุปยอดขาย" },
-  { href: "/attendance", icon: <Clock size={20} />, label: "บันทึกเวลาทำงาน" },
-  { href: "/time-report", icon: <FileClock size={20} />, label: "รายงานเวลาทำงาน" },
-  { href: "/menu", icon: <Utensils size={20} />, label: "รายการอาหาร" },
-  { href: "/employees", icon: <Users size={20} />, label: "ข้อมูลพนักงาน" },
+// ✅ 1. กำหนดสิทธิ์ให้แต่ละเมนู (allowedRoles)
+const MENU_ITEMS = [
+  { 
+    href: "/table", 
+    icon: <FileText size={20} />, 
+    label: "รับออเดอร์", 
+    allowedRoles: ["เจ้าของร้าน", "ผู้จัดการร้าน", "พนักงานทั่วไป"] 
+  },
+  { 
+    href: "/order-status", 
+    icon: <ClipboardList size={20} />, 
+    label: "รายการออเดอร์", 
+    allowedRoles: ["เจ้าของร้าน", "ผู้จัดการร้าน", "พนักงานทั่วไป", "พนักงานในครัว"] 
+  },
+  { 
+    href: "/history", 
+    icon: <History size={20} />, 
+    label: "ประวัติยอดการสั่งอาหาร", 
+    allowedRoles: ["เจ้าของร้าน", "ผู้จัดการร้าน"] 
+  },
+  { 
+    href: "/dashboard", 
+    icon: <BarChart2 size={20} />, 
+    label: "สรุปยอดขาย", 
+    allowedRoles: ["เจ้าของร้าน", "ผู้จัดการร้าน"] 
+  },
+  { 
+    href: "/attendance", 
+    icon: <Clock size={20} />, 
+    label: "บันทึกเวลาทำงาน", 
+    allowedRoles: ["เจ้าของร้าน", "ผู้จัดการร้าน", "พนักงานทั่วไป", "พนักงานในครัว"] // ทุกคนต้องลงเวลา
+  },
+  { 
+    href: "/time-report", 
+    icon: <FileClock size={20} />, 
+    label: "รายงานเวลาทำงาน", 
+    allowedRoles: ["เจ้าของร้าน", "ผู้จัดการร้าน"] 
+  },
+  { 
+    href: "/menu", 
+    icon: <Utensils size={20} />, 
+    label: "รายการอาหาร", 
+    allowedRoles: ["เจ้าของร้าน", "ผู้จัดการร้าน", "พนักงานในครัว"] 
+  },
+  { 
+    href: "/employees", 
+    icon: <Users size={20} />, 
+    label: "ข้อมูลพนักงาน", 
+    allowedRoles: ["เจ้าของร้าน"] 
+  },
 ];
 
 export function AppSidebar() {
   const [user, setUser] = useState({});
+  const [userPosition, setUserPosition] = useState(""); // ✅ State สำหรับเก็บตำแหน่ง
 
   useEffect(() => {
+    // ✅ ดึงตำแหน่งจาก LocalStorage ทันทีที่โหลดหน้าเว็บ
+    const storedPosition = typeof window !== "undefined" ? localStorage.getItem("userPosition") : null;
+    if (storedPosition) {
+      setUserPosition(storedPosition);
+    }
+
     const userId = typeof window !== "undefined" ? localStorage.getItem("userId") : null;
     if (!userId) return;
 
@@ -55,15 +103,25 @@ export function AppSidebar() {
         }
         const data = await res.json();
         setUser(data);
+        
+        // อัปเดตตำแหน่งจาก API อีกครั้งเพื่อความชัวร์ (กรณี localStorage เก่า)
+        if (data.position) {
+          setUserPosition(data.position);
+          localStorage.setItem("userPosition", data.position);
+        }
       } catch (err) {
         console.error("Failed to fetch user:", err);
       }
     })();
   }, []);
 
+  // ✅ กรองเมนูตามตำแหน่ง (ถ้ายังไม่โหลดตำแหน่ง ให้แสดง array ว่าง หรือเมนูพื้นฐาน)
+  const filteredItems = userPosition 
+    ? MENU_ITEMS.filter(item => item.allowedRoles.includes(userPosition))
+    : [];
+
   return (
     <Sidebar collapsible="icon">
-      {/* ส่วน Header ปรับให้เป็น SidebarMenu เพื่อให้ alignment ตรงกับด้านล่าง */}
       <SidebarHeader>
         <SidebarMenu>
           <SidebarMenuItem>
@@ -71,13 +129,10 @@ export function AppSidebar() {
               size="lg"
               className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
             >
-              {/* ส่วนรูปโลโก้ (ทำหน้าที่เป็น Icon) */}
               <div className="flex aspect-square size-8 items-center justify-center rounded-lg text-sidebar-primary-foreground">
-                {/* ปรับขนาด Logo ให้พอดีกับช่อง Icon (ประมาณ 32-40px) */}
                 <Logo width={40} height={40} className="object-contain" />
               </div>
 
-              {/* ส่วนข้อความ (จะซ่อนอัตโนมัติเมื่อ Sidebar พับ) */}
               <div className="grid flex-1 text-left text-sm leading-tight">
                 <span className="truncate font-bold text-[#FF5722]">
                   ร้านตำลืมผัว
@@ -94,7 +149,8 @@ export function AppSidebar() {
       <SidebarContent>
         <SidebarGroup>
           <SidebarMenu>
-            {sidebarItems.map((item) => (
+            {/* ✅ ใช้ filteredItems แทน sidebarItems เดิม */}
+            {filteredItems.map((item) => (
               <SidebarMenuItem key={item.href}>
                 <SidebarMenuButton asChild>
                   <a

@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import Image from "next/image"; // เพิ่ม import Image
+import Image from "next/image";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import {
@@ -21,7 +21,6 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-
   const [showPassword, setShowPassword] = useState(false);
 
   const router = useRouter();
@@ -31,14 +30,6 @@ export default function LoginPage() {
     setError("");
     setIsLoading(true);
 
-    // Simulate login (เอาส่วนนี้ออกเมื่อเชื่อมต่อ API จริง)
-    await new Promise((resolve) => setTimeout(resolve, 1500));
-    setIsLoading(false);
-    console.log("Login with:", email, password);
-    // End Simulation
-
-    
-    // Real API Call implementation
     try {
       const res = await fetch("/api/login", {
         method: "POST",
@@ -49,9 +40,15 @@ export default function LoginPage() {
       const data = await res.json();
 
       if (res.ok) {
+        // บันทึกข้อมูลลงเครื่อง
         localStorage.setItem("userId", data.id);
+        localStorage.setItem("userPosition", data.position);
+
+        // ✅ บังคับให้ทุกคนไปหน้า /table เป็นหน้าแรก
         router.push("/table");
+
       } else {
+        // แสดงข้อความ Error ที่ส่งมาจาก Backend (เช่น "บัญชีของคุณถูกระงับ...")
         setError(data.message || "อีเมลหรือรหัสผ่านไม่ถูกต้อง");
       }
     } catch (err) {
@@ -60,28 +57,22 @@ export default function LoginPage() {
     } finally {
       setIsLoading(false);
     }
-    
   };
 
   return (
-    // Pitch Black Background
     <div className="flex items-center justify-center min-h-screen bg-gray-50 dark:bg-black p-4 transition-colors duration-500">
-      {/* Card: Black background with very subtle zinc-900 border */}
       <Card className="w-full max-w-md shadow-none border-gray-200 dark:border-zinc-900 dark:bg-black">
         <CardHeader className="space-y-2 text-center">
-          {/* --- ส่วนที่เพิ่มโลโก้ --- */}
           <div className="flex justify-center mb-4 pb-2">
-             {/* ตรวจสอบให้แน่ใจว่าไฟล์รูปภาพอยู่ใน folder /public และชื่อตรงกัน */}
-             <Image
-               src="/logo.png" // เปลี่ยน path นี้ให้ตรงกับที่เก็บไฟล์รูปของคุณใน public folder
-               alt="ตำลืมผัว โลโก้"
-               width={150}
-               height={150}
-               className="h-auto w-auto object-contain"
-               priority
-             />
+            <Image
+              src="/logo.png"
+              alt="ตำลืมผัว โลโก้"
+              width={150}
+              height={150}
+              className="h-auto w-auto object-contain"
+              priority
+            />
           </div>
-          {/* ----------------------- */}
 
           <CardTitle className="text-3xl font-bold tracking-tight text-gray-900 dark:text-white">
             เข้าสู่ระบบ
@@ -111,7 +102,6 @@ export default function LoginPage() {
                   placeholder="name@example.com"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  // Input: Black bg, subtle border, white text
                   className="pl-10 h-12 border-gray-300 dark:bg-black dark:border-zinc-800 dark:text-white dark:placeholder:text-zinc-700 focus-visible:ring-gray-400 dark:focus-visible:ring-white transition-all"
                   required
                   disabled={isLoading}
@@ -153,15 +143,11 @@ export default function LoginPage() {
           </CardContent>
 
           <CardFooter className="pt-6 pb-8">
-            {/* --- ส่วนที่แก้ไขสีปุ่ม --- */}
             <Button
-              // ใช้สีส้ม (Hex code #FF5722) ที่เข้ากับโลโก้ และตัวอักษรสีขาว
-              // ลบ dark:bg-white dark:text-black ออกเพื่อให้สีส้มเป็นสีหลักตลอด
               className="w-full h-12 text-lg font-bold shadow-sm text-white bg-[#FF5722] hover:bg-[#E64A19] transition-all active:scale-[0.98]"
               type="submit"
               disabled={isLoading}
             >
-            {/* ----------------------- */}
               {isLoading ? (
                 <>
                   <Loader2 className="mr-2 h-5 w-5 animate-spin" />
