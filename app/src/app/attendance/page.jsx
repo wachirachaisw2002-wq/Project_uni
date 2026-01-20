@@ -62,7 +62,7 @@ export default function AttendancePage() {
     fetchAttendance();
   }, [router]);
 
-  // --- ฟังก์ชันย่อรูปภาพ (แก้ปัญหา Packet Too Large) ---
+  // --- ฟังก์ชันย่อรูปภาพ ---
   const compressImage = (file) => {
     return new Promise((resolve) => {
       const reader = new FileReader();
@@ -72,8 +72,6 @@ export default function AttendancePage() {
         img.src = event.target.result;
         img.onload = () => {
           const canvas = document.createElement("canvas");
-
-          // กำหนดขนาดสูงสุด (800px ก็ชัดพอสำหรับดูหน้าคนแล้วครับ)
           const MAX_WIDTH = 800;
           const MAX_HEIGHT = 800;
           let width = img.width;
@@ -93,11 +91,8 @@ export default function AttendancePage() {
 
           canvas.width = width;
           canvas.height = height;
-
           const ctx = canvas.getContext("2d");
           ctx.drawImage(img, 0, 0, width, height);
-
-          // แปลงเป็น JPEG คุณภาพ 0.7 (ลดขนาดไฟล์ได้ 90%+)
           const dataUrl = canvas.toDataURL("image/jpeg", 0.7);
           resolve(dataUrl);
         };
@@ -105,9 +100,8 @@ export default function AttendancePage() {
     });
   };
 
-  // ฟังก์ชันคำนวณระยะห่าง (Haversine Formula)
   const calculateDistance = (lat1, lon1, lat2, lon2) => {
-    const R = 6371e3; // รัศมีโลก (เมตร)
+    const R = 6371e3;
     const φ1 = lat1 * Math.PI / 180;
     const φ2 = lat2 * Math.PI / 180;
     const Δφ = (lat2 - lat1) * Math.PI / 180;
@@ -118,10 +112,9 @@ export default function AttendancePage() {
       Math.sin(Δλ / 2) * Math.sin(Δλ / 2);
     const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 
-    return R * c; // ผลลัพธ์เป็นเมตร
+    return R * c;
   };
 
-  // ฟังก์ชันขอพิกัดปัจจุบัน
   const getCurrentLocation = () => {
     return new Promise((resolve, reject) => {
       if (!navigator.geolocation) {
@@ -139,7 +132,6 @@ export default function AttendancePage() {
     });
   };
 
-  // ฟังก์ชันจัดการเมื่อถ่ายรูปเสร็จ (เรียกใช้ compressImage)
   const handlePhotoCapture = async (e) => {
     const file = e.target.files[0];
     if (file) {
@@ -158,27 +150,18 @@ export default function AttendancePage() {
     if (!userId) return;
 
     setIsProcessing(true);
-
     let locationData = { lat: null, lng: null };
 
-    // --- เงื่อนไขสำหรับ "เข้างาน" (Check In) ---
     if (!isCheckedIn) {
-
-      // 1. เช็คว่าถ่ายรูปหรือยัง
       if (!photo) {
         alert("กรุณาถ่ายรูปยืนยันตัวตนก่อนเข้างาน");
         setIsProcessing(false);
         return;
       }
-
-      // 2. เช็ค GPS
       try {
         const pos = await getCurrentLocation();
         locationData = pos;
-
         const distance = calculateDistance(pos.lat, pos.lng, SHOP_LOCATION.lat, SHOP_LOCATION.lng);
-        console.log(`Distance: ${distance.toFixed(2)} meters`);
-
         if (distance > ALLOWED_RADIUS_METERS) {
           alert(`คุณอยู่นอกพื้นที่ร้าน! (ห่าง ${distance.toFixed(0)} เมตร)\nต้องอยู่ในรัศมี ${ALLOWED_RADIUS_METERS} เมตร จากเดอะพาเลซ`);
           setIsProcessing(false);
@@ -192,7 +175,6 @@ export default function AttendancePage() {
       }
     }
 
-    // ส่งข้อมูลไป API
     const action = isCheckedIn ? "check_out" : "check_in";
 
     try {
@@ -204,7 +186,7 @@ export default function AttendancePage() {
           action,
           lat: locationData.lat,
           lng: locationData.lng,
-          photo: isCheckedIn ? null : photo // ส่งรูปเฉพาะตอนเข้างาน
+          photo: isCheckedIn ? null : photo
         }),
       });
 
@@ -212,7 +194,7 @@ export default function AttendancePage() {
         await fetchAttendance();
         if (!isCheckedIn) {
           alert("เข้างานสำเร็จ! (บันทึกพิกัดและรูปภาพเรียบร้อย)");
-          setPhoto(null); // เคลียร์รูป
+          setPhoto(null);
         }
       } else {
         const err = await res.json();
@@ -244,21 +226,12 @@ export default function AttendancePage() {
     return date.toLocaleDateString('th-TH', { day: 'numeric', month: 'short', year: '2-digit' });
   };
 
-  if (isLoading) {
-    return (
-      <div className="flex h-screen items-center justify-center bg-zinc-50 dark:bg-black">
-        <Loader2 className="h-10 w-10 animate-spin text-orange-500" />
-      </div>
-    );
-  }
-
   return (
     <SidebarProvider>
       <AppSidebar />
-      {/* 🔴 ปรับโครงสร้าง Wrapper หลัก */}
       <SidebarInset className="dark:bg-black h-screen flex flex-col overflow-hidden w-full">
 
-        {/* 🔴 Header แบบ Fixed */}
+        {/* 🔴 Header */}
         <header className="flex-none z-50 flex h-16 w-full items-center justify-between px-4 border-b 
           bg-white dark:bg-zinc-950 dark:border-zinc-800">
           <div className="flex items-center gap-3">
@@ -268,186 +241,189 @@ export default function AttendancePage() {
           </div>
         </header>
 
-        {/* 🔴 Main Content แบบ Scrollable */}
+        {/* 🔴 Main Content */}
         <main className="flex-1 overflow-y-auto p-2 sm:p-4 bg-zinc-50/30 dark:bg-black w-full">
 
-          {/* 🔴 Container ตรงกลาง */}
-          <div className="max-w-4xl mx-auto space-y-4">
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-
-              {/* Clock Card */}
-              <Card className="border-none shadow-sm bg-gradient-to-br from-zinc-900 to-zinc-800 text-white rounded-2xl overflow-hidden relative">
-                <div className="absolute top-0 right-0 p-32 bg-white/5 rounded-full blur-3xl -mr-16 -mt-16"></div>
-                <CardContent className="p-6 flex flex-col justify-between h-full relative z-10 min-h-[200px]">
-                  <div>
-                    <p className="text-zinc-400 font-medium mb-1 flex items-center gap-2 text-xs">
-                      <CalendarDays className="w-3.5 h-3.5" />
-                      {currentTime.toLocaleDateString('th-TH', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
-                    </p>
-                    <h2 className="text-4xl md:text-5xl font-bold tracking-tight font-mono mt-2">
-                      {currentTime.toLocaleTimeString('th-TH', { hour12: false })}
-                    </h2>
-                  </div>
-                  <div className="mt-4">
-                    <div className="flex items-center gap-2 text-xs text-zinc-300">
-                      <MapPin className="w-3.5 h-3.5 text-orange-500" />
-                      <span>ตรวจสอบพิกัด & รูปถ่าย</span>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-
-              {/* Action Card */}
-              <Card className="border-none shadow-sm bg-white dark:bg-zinc-900 rounded-2xl ring-1 ring-zinc-100 dark:ring-zinc-800 flex flex-col justify-center items-center p-6 text-center">
-
-                {/* 📸 ส่วนถ่ายรูป (แสดงเฉพาะตอนยังไม่เข้างาน) */}
-                {!isCheckedIn && (
-                  <div className="mb-4 w-full flex flex-col items-center">
-                    <div className="relative w-24 h-24 bg-zinc-100 dark:bg-zinc-800 rounded-2xl overflow-hidden border-2 border-dashed border-zinc-300 dark:border-zinc-700 flex items-center justify-center mb-2">
-                      {photo ? (
-                        <img src={photo} alt="Preview" className="w-full h-full object-cover" />
-                      ) : (
-                        <div className="text-zinc-400 flex flex-col items-center">
-                          <Camera className="w-6 h-6 mb-1" />
-                          <span className="text-[10px]">รูปยืนยัน</span>
-                        </div>
-                      )}
-
-                      <input
-                        type="file"
-                        accept="image/*"
-                        capture="user"
-                        id="camera-input"
-                        className="hidden"
-                        onChange={handlePhotoCapture}
-                      />
-                    </div>
-
-                    <label
-                      htmlFor="camera-input"
-                      className="cursor-pointer text-xs font-medium text-orange-600 bg-orange-50 px-3 py-1.5 rounded-full hover:bg-orange-100 transition-colors"
-                    >
-                      {photo ? "ถ่ายใหม่" : "กดเพื่อถ่ายรูป"}
-                    </label>
-                  </div>
-                )}
-
-                <div className="mb-4">
-                  {/* Icon Status */}
-                  {!isCheckedIn && photo ? null : (
-                    <div className={`w-14 h-14 rounded-full flex items-center justify-center mx-auto mb-2 ${isCheckedIn ? 'bg-emerald-100 text-emerald-600' : 'hidden'}`}>
-                      {isCheckedIn && <Clock className="w-8 h-8" />}
-                    </div>
-                  )}
-
-                  <h3 className="text-lg font-bold text-zinc-900 dark:text-white">
-                    {isCheckedIn ? "คุณกำลังปฏิบัติงาน" : (photo ? "พร้อมเข้างาน" : "กรุณาถ่ายรูปเพื่อเข้างาน")}
-                  </h3>
-                  <p className="text-zinc-500 text-xs mt-1">
-                    {isCheckedIn
-                      ? `เริ่มงานเมื่อ ${formatDateTime(currentSession?.check_in)}`
-                      : "ระบบจะตรวจสอบ GPS และรูปถ่ายก่อนบันทึก"}
-                  </p>
-                </div>
-
-                <Button
-                  size="lg"
-                  onClick={handleToggleAttendance}
-                  disabled={isProcessing || (!isCheckedIn && !photo)} // ล็อคปุ่มถ้าไม่ถ่ายรูปตอนเข้างาน
-                  className={`w-full max-w-xs h-12 text-base font-bold rounded-xl shadow-lg transition-all active:scale-95 ${isCheckedIn
-                    ? "bg-rose-500 hover:bg-rose-600 shadow-rose-500/20"
-                    : "bg-emerald-500 hover:bg-emerald-600 shadow-emerald-500/20"
-                    }`}
-                >
-                  {isProcessing ? (
-                    <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-                  ) : (
-                    isCheckedIn ? <><LogOut className="mr-2 h-5 w-5" /> ลงเวลาออกงาน</> : <><LogIn className="mr-2 h-5 w-5" /> ลงเวลาเข้างาน</>
-                  )}
-                </Button>
-              </Card>
+          {/* ✅ ย้าย Loading มาเช็คตรงนี้แทน เพื่อให้ Sidebar ยังคงแสดงอยู่ */}
+          {isLoading ? (
+            <div className="flex flex-col items-center justify-center h-[calc(100vh-5rem)] gap-4">
+              <Loader2 className="h-10 w-10 animate-spin text-orange-600" />
+              <p className="text-sm font-medium animate-pulse text-orange-600">กำลังโหลดข้อมูล...</p>
             </div>
+          ) : (
+            <div className="max-w-4xl mx-auto space-y-4">
 
-            {/* History Table */}
-            <div className="space-y-3">
-              <div className="flex items-center gap-2 px-1">
-                <History className="w-4 h-4 text-zinc-500" />
-                <h3 className="text-sm font-bold text-zinc-800 dark:text-zinc-200">ประวัติการเข้า-ออกงาน</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+
+                {/* Clock Card */}
+                <Card className="border-none shadow-sm bg-gradient-to-br from-zinc-900 to-zinc-800 text-white rounded-2xl overflow-hidden relative">
+                  <div className="absolute top-0 right-0 p-32 bg-white/5 rounded-full blur-3xl -mr-16 -mt-16"></div>
+                  <CardContent className="p-6 flex flex-col justify-between h-full relative z-10 min-h-[200px]">
+                    <div>
+                      <p className="text-zinc-400 font-medium mb-1 flex items-center gap-2 text-xs">
+                        <CalendarDays className="w-3.5 h-3.5" />
+                        {currentTime.toLocaleDateString('th-TH', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
+                      </p>
+                      <h2 className="text-4xl md:text-5xl font-bold tracking-tight font-mono mt-2">
+                        {currentTime.toLocaleTimeString('th-TH', { hour12: false })}
+                      </h2>
+                    </div>
+                    <div className="mt-4">
+                      <div className="flex items-center gap-2 text-xs text-zinc-300">
+                        <MapPin className="w-3.5 h-3.5 text-orange-500" />
+                        <span>ตรวจสอบพิกัด & รูปถ่าย</span>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                {/* Action Card */}
+                <Card className="border-none shadow-sm bg-white dark:bg-zinc-900 rounded-2xl ring-1 ring-zinc-100 dark:ring-zinc-800 flex flex-col justify-center items-center p-6 text-center">
+
+                  {!isCheckedIn && (
+                    <div className="mb-4 w-full flex flex-col items-center">
+                      <div className="relative w-24 h-24 bg-zinc-100 dark:bg-zinc-800 rounded-2xl overflow-hidden border-2 border-dashed border-zinc-300 dark:border-zinc-700 flex items-center justify-center mb-2">
+                        {photo ? (
+                          <img src={photo} alt="Preview" className="w-full h-full object-cover" />
+                        ) : (
+                          <div className="text-zinc-400 flex flex-col items-center">
+                            <Camera className="w-6 h-6 mb-1" />
+                            <span className="text-[10px]">รูปยืนยัน</span>
+                          </div>
+                        )}
+
+                        <input
+                          type="file"
+                          accept="image/*"
+                          capture="user"
+                          id="camera-input"
+                          className="hidden"
+                          onChange={handlePhotoCapture}
+                        />
+                      </div>
+
+                      <label
+                        htmlFor="camera-input"
+                        className="cursor-pointer text-xs font-medium text-orange-600 bg-orange-50 px-3 py-1.5 rounded-full hover:bg-orange-100 transition-colors"
+                      >
+                        {photo ? "ถ่ายใหม่" : "กดเพื่อถ่ายรูป"}
+                      </label>
+                    </div>
+                  )}
+
+                  <div className="mb-4">
+                    {!isCheckedIn && photo ? null : (
+                      <div className={`w-14 h-14 rounded-full flex items-center justify-center mx-auto mb-2 ${isCheckedIn ? 'bg-emerald-100 text-emerald-600' : 'hidden'}`}>
+                        {isCheckedIn && <Clock className="w-8 h-8" />}
+                      </div>
+                    )}
+
+                    <h3 className="text-lg font-bold text-zinc-900 dark:text-white">
+                      {isCheckedIn ? "คุณกำลังปฏิบัติงาน" : (photo ? "พร้อมเข้างาน" : "กรุณาถ่ายรูปเพื่อเข้างาน")}
+                    </h3>
+                    <p className="text-zinc-500 text-xs mt-1">
+                      {isCheckedIn
+                        ? `เริ่มงานเมื่อ ${formatDateTime(currentSession?.check_in)}`
+                        : "ระบบจะตรวจสอบ GPS และรูปถ่ายก่อนบันทึก"}
+                    </p>
+                  </div>
+
+                  <Button
+                    size="lg"
+                    onClick={handleToggleAttendance}
+                    disabled={isProcessing || (!isCheckedIn && !photo)}
+                    className={`w-full max-w-xs h-12 text-base font-bold rounded-xl shadow-lg transition-all active:scale-95 ${isCheckedIn
+                      ? "bg-rose-500 hover:bg-rose-600 shadow-rose-500/20"
+                      : "bg-emerald-500 hover:bg-emerald-600 shadow-emerald-500/20"
+                      }`}
+                  >
+                    {isProcessing ? (
+                      <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                    ) : (
+                      isCheckedIn ? <><LogOut className="mr-2 h-5 w-5" /> ลงเวลาออกงาน</> : <><LogIn className="mr-2 h-5 w-5" /> ลงเวลาเข้างาน</>
+                    )}
+                  </Button>
+                </Card>
               </div>
 
-              <Card className="border-none shadow-sm bg-white dark:bg-zinc-900 rounded-2xl ring-1 ring-zinc-100 dark:ring-zinc-800 overflow-hidden">
-                <div className="overflow-x-auto">
-                  <Table className="min-w-[600px]">
-                    <TableHeader className="bg-zinc-50/50 dark:bg-zinc-950/50">
-                      <TableRow className="dark:border-zinc-800">
-                        <TableHead className="w-[120px] text-xs h-10">วันที่</TableHead>
-                        <TableHead className="text-xs h-10">เวลาเข้า</TableHead>
-                        <TableHead className="text-xs h-10">เวลาออก</TableHead>
-                        <TableHead className="text-xs h-10">รวมเวลา</TableHead>
-                        <TableHead className="text-right text-xs h-10">สถานะ</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {history.length === 0 ? (
-                        <TableRow>
-                          <TableCell colSpan={5} className="text-center py-8 text-xs text-zinc-500">
-                            ยังไม่มีประวัติการเข้างาน
-                          </TableCell>
+              {/* History Table */}
+              <div className="space-y-3">
+                <div className="flex items-center gap-2 px-1">
+                  <History className="w-4 h-4 text-zinc-500" />
+                  <h3 className="text-sm font-bold text-zinc-800 dark:text-zinc-200">ประวัติการเข้า-ออกงาน</h3>
+                </div>
+
+                <Card className="border-none shadow-sm bg-white dark:bg-zinc-900 rounded-2xl ring-1 ring-zinc-100 dark:ring-zinc-800 overflow-hidden">
+                  <div className="overflow-x-auto">
+                    <Table className="min-w-[600px]">
+                      <TableHeader className="bg-zinc-50/50 dark:bg-zinc-950/50">
+                        <TableRow className="dark:border-zinc-800">
+                          <TableHead className="w-[120px] text-xs h-10">วันที่</TableHead>
+                          <TableHead className="text-xs h-10">เวลาเข้า</TableHead>
+                          <TableHead className="text-xs h-10">เวลาออก</TableHead>
+                          <TableHead className="text-xs h-10">รวมเวลา</TableHead>
+                          <TableHead className="text-right text-xs h-10">สถานะ</TableHead>
                         </TableRow>
-                      ) : (
-                        history.map((record) => (
-                          <TableRow key={record.id} className="hover:bg-zinc-50/50 dark:hover:bg-zinc-800/50 dark:border-zinc-800">
-                            <TableCell className="font-medium text-zinc-700 dark:text-zinc-300 text-xs py-2">
-                              {formatDateTime(record.work_date, 'date')}
-                            </TableCell>
-                            <TableCell className="py-2">
-                              <div className="flex items-center gap-2 text-xs">
-                                <div className="w-1.5 h-1.5 rounded-full bg-emerald-500"></div>
-                                {formatDateTime(record.check_in)}
-                              </div>
-                            </TableCell>
-                            <TableCell className="py-2">
-                              {record.check_out ? (
-                                <div className="flex items-center gap-2 text-xs">
-                                  <div className="w-1.5 h-1.5 rounded-full bg-rose-500"></div>
-                                  {formatDateTime(record.check_out)}
-                                </div>
-                              ) : (
-                                <span className="text-zinc-400 italic text-xs">-</span>
-                              )}
-                            </TableCell>
-                            <TableCell className="py-2">
-                              <div className="flex items-center gap-1.5 text-zinc-600 dark:text-zinc-400 text-xs">
-                                <Timer className="w-3.5 h-3.5" />
-                                {record.check_out
-                                  ? calculateDuration(record.check_in, record.check_out)
-                                  : <span className="text-emerald-600 font-medium animate-pulse">กำลังทำงาน...</span>
-                                }
-                              </div>
-                            </TableCell>
-                            <TableCell className="text-right py-2">
-                              {record.check_out ? (
-                                <Badge variant="outline" className="text-zinc-500 border-zinc-200 bg-zinc-50 text-[10px] h-5 px-1.5">
-                                  เสร็จสิ้น
-                                </Badge>
-                              ) : (
-                                <Badge className="bg-emerald-500 hover:bg-emerald-600 text-[10px] h-5 px-1.5">
-                                  ทำงานอยู่
-                                </Badge>
-                              )}
+                      </TableHeader>
+                      <TableBody>
+                        {history.length === 0 ? (
+                          <TableRow>
+                            <TableCell colSpan={5} className="text-center py-8 text-xs text-zinc-500">
+                              ยังไม่มีประวัติการเข้างาน
                             </TableCell>
                           </TableRow>
-                        ))
-                      )}
-                    </TableBody>
-                  </Table>
-                </div>
-              </Card>
+                        ) : (
+                          history.map((record) => (
+                            <TableRow key={record.id} className="hover:bg-zinc-50/50 dark:hover:bg-zinc-800/50 dark:border-zinc-800">
+                              <TableCell className="font-medium text-zinc-700 dark:text-zinc-300 text-xs py-2">
+                                {formatDateTime(record.work_date, 'date')}
+                              </TableCell>
+                              <TableCell className="py-2">
+                                <div className="flex items-center gap-2 text-xs">
+                                  <div className="w-1.5 h-1.5 rounded-full bg-emerald-500"></div>
+                                  {formatDateTime(record.check_in)}
+                                </div>
+                              </TableCell>
+                              <TableCell className="py-2">
+                                {record.check_out ? (
+                                  <div className="flex items-center gap-2 text-xs">
+                                    <div className="w-1.5 h-1.5 rounded-full bg-rose-500"></div>
+                                    {formatDateTime(record.check_out)}
+                                  </div>
+                                ) : (
+                                  <span className="text-zinc-400 italic text-xs">-</span>
+                                )}
+                              </TableCell>
+                              <TableCell className="py-2">
+                                <div className="flex items-center gap-1.5 text-zinc-600 dark:text-zinc-400 text-xs">
+                                  <Timer className="w-3.5 h-3.5" />
+                                  {record.check_out
+                                    ? calculateDuration(record.check_in, record.check_out)
+                                    : <span className="text-emerald-600 font-medium animate-pulse">กำลังทำงาน...</span>
+                                  }
+                                </div>
+                              </TableCell>
+                              <TableCell className="text-right py-2">
+                                {record.check_out ? (
+                                  <Badge variant="outline" className="text-zinc-500 border-zinc-200 bg-zinc-50 text-[10px] h-5 px-1.5">
+                                    เสร็จสิ้น
+                                  </Badge>
+                                ) : (
+                                  <Badge className="bg-emerald-500 hover:bg-emerald-600 text-[10px] h-5 px-1.5">
+                                    ทำงานอยู่
+                                  </Badge>
+                                )}
+                              </TableCell>
+                            </TableRow>
+                          ))
+                        )}
+                      </TableBody>
+                    </Table>
+                  </div>
+                </Card>
+              </div>
             </div>
-
-          </div>
-
+          )}
         </main>
       </SidebarInset>
     </SidebarProvider>

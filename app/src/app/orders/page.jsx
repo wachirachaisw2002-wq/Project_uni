@@ -9,7 +9,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { Search, ShoppingCart, Plus, Minus, UtensilsCrossed, Trash2, Ban } from "lucide-react";
+// ✅ Import Loader2 เพิ่ม
+import { Search, ShoppingCart, Plus, Minus, UtensilsCrossed, Trash2, Ban, Loader2 } from "lucide-react";
 import {
   Select,
   SelectTrigger,
@@ -45,6 +46,7 @@ export default function OrderPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [cart, setCart] = useState([]);
   const [selectedCategory, setSelectedCategory] = useState("ทั้งหมด");
+  const [isLoading, setIsLoading] = useState(true); // ✅ เพิ่ม Loading State
 
   const [showDialog, setShowDialog] = useState(false);
   const [note, setNote] = useState("");
@@ -87,7 +89,11 @@ export default function OrderPage() {
         const res = await fetch("/api/menu", { cache: "no-store" });
         const data = await res.json();
         setMenus(Array.isArray(data) ? data : []);
-      } catch (error) { console.error(error); }
+      } catch (error) {
+        console.error(error);
+      } finally {
+        setIsLoading(false); // ✅ ปิด Loading เมื่อโหลดเสร็จ
+      }
     }
     fetchMenus();
   }, []);
@@ -161,9 +167,6 @@ export default function OrderPage() {
       return matchSearch && matchCategory;
     });
     return filtered.sort((a, b) => {
-      // เรียงสินค้าหมดไว้ท้ายสุด (optional: ถ้าอยากให้สินค้าหมดไปอยู่ข้างล่าง ให้ uncomment บรรทัดล่างนี้)
-      // if (a.available !== b.available) return a.available === false ? 1 : -1;
-
       const catA = norm(a.category).trim();
       const catB = norm(b.category).trim();
       const idxA = categories.indexOf(catA);
@@ -218,175 +221,177 @@ export default function OrderPage() {
 
         <main className="p-6 bg-gray-50/50 min-h-[calc(100vh-4rem)] flex flex-col gap-6 dark:bg-black">
 
-          <div className="flex flex-col md:flex-row items-center gap-4 w-full bg-white p-4 rounded-xl shadow-sm border border-gray-100 dark:bg-black dark:border-zinc-800">
-            <div className="relative flex-1 w-full">
-              <Search className="absolute left-3 top-2.5 h-4 w-4 text-gray-400 dark:text-zinc-600" />
-              <Input
-                placeholder="ค้นหาเมนูอาหาร..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-9 bg-gray-50 border-gray-200 focus-visible:ring-gray-400 dark:bg-zinc-900 dark:border-zinc-800 dark:text-zinc-50 dark:placeholder:text-zinc-600"
-              />
+          {/* ✅ ส่วน Loading State */}
+          {isLoading ? (
+            <div className="flex flex-col items-center justify-center h-[60vh] gap-4">
+              <Loader2 className="h-10 w-10 animate-spin text-orange-600" />
+              <p className="text-sm font-medium animate-pulse text-orange-600">กำลังโหลดเมนู...</p>
             </div>
-            <div className="w-full md:w-56 flex-shrink-0">
-              <Select value={selectedCategory} onValueChange={setSelectedCategory}>
-                <SelectTrigger
-                  className="w-full bg-gray-50 border-gray-200 focus:ring-gray-400 dark:bg-zinc-900 dark:border-zinc-800 dark:text-zinc-50"
-                >
-                  <SelectValue placeholder="หมวดหมู่" />
-                </SelectTrigger>
-                <SelectContent className="dark:bg-zinc-900 dark:border-zinc-800">
-                  {categories.map((cat) => (
-                    <SelectItem key={cat} value={cat}>{cat}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-            {filteredMenus.length === 0 ? (
-              <div className="col-span-full flex flex-col items-center justify-center py-12 text-gray-400 dark:text-zinc-800">
-                <UtensilsCrossed className="h-12 w-12 mb-2 opacity-20" />
-                <p>ไม่พบเมนูที่ค้นหา</p>
+          ) : (
+            <>
+              <div className="flex flex-col md:flex-row items-center gap-4 w-full bg-white p-4 rounded-xl shadow-sm border border-gray-100 dark:bg-black dark:border-zinc-800">
+                <div className="relative flex-1 w-full">
+                  <Search className="absolute left-3 top-2.5 h-4 w-4 text-gray-400 dark:text-zinc-600" />
+                  <Input
+                    placeholder="ค้นหาเมนูอาหาร..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="pl-9 bg-gray-50 border-gray-200 focus-visible:ring-gray-400 dark:bg-zinc-900 dark:border-zinc-800 dark:text-zinc-50 dark:placeholder:text-zinc-600"
+                  />
+                </div>
+                <div className="w-full md:w-56 flex-shrink-0">
+                  <Select value={selectedCategory} onValueChange={setSelectedCategory}>
+                    <SelectTrigger
+                      className="w-full bg-gray-50 border-gray-200 focus:ring-gray-400 dark:bg-zinc-900 dark:border-zinc-800 dark:text-zinc-50"
+                    >
+                      <SelectValue placeholder="หมวดหมู่" />
+                    </SelectTrigger>
+                    <SelectContent className="dark:bg-zinc-900 dark:border-zinc-800">
+                      {categories.map((cat) => (
+                        <SelectItem key={cat} value={cat}>{cat}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
-            ) : (
-              filteredMenus.map((menu) => {
-                const qtyInCart = getMenuQtyInCart(menu.menu_id ?? menu.id);
-                const isReadyType = menu.type === "ready";
-                // ✅ ตรวจสอบสถานะ available (สมมติว่าเป็น 1/0 หรือ true/false)
-                const isAvailable = menu.available !== false && menu.available !== 0;
 
-                return (
-                  <Card
-                    key={menu.menu_id ?? menu.id}
-                    className={`flex flex-row overflow-hidden h-36 border border-gray-100 shadow-sm transition-all group bg-white relative dark:bg-black dark:border-zinc-900 dark:shadow-none
-                      ${!isAvailable ? 'opacity-80 grayscale-[0.8] bg-gray-50 dark:bg-zinc-900/50' : 'hover:shadow-md'}
-                    `}
-                  >
-                    {/* Image Section */}
-                    <div className="w-36 h-full flex-shrink-0 relative p-3">
-                      <div className="w-full h-full relative overflow-hidden rounded-xl bg-gray-100 shadow-sm dark:bg-zinc-900">
-                        {menu.image ? (
-                          <img
-                            src={menu.image}
-                            alt={menu.name}
-                            className="w-full h-full object-cover transition-transform duration-300"
-                          />
-                        ) : (
-                          <div className="w-full h-full flex flex-col items-center justify-center text-gray-400 dark:text-zinc-700">
-                            <UtensilsCrossed className="h-6 w-6 mb-1 opacity-50" />
-                            <span className="text-[10px]">ไม่มีรูป</span>
+              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+                {filteredMenus.length === 0 ? (
+                  <div className="col-span-full flex flex-col items-center justify-center py-12 text-gray-400 dark:text-zinc-800">
+                    <UtensilsCrossed className="h-12 w-12 mb-2 opacity-20" />
+                    <p>ไม่พบเมนูที่ค้นหา</p>
+                  </div>
+                ) : (
+                  filteredMenus.map((menu) => {
+                    const qtyInCart = getMenuQtyInCart(menu.menu_id ?? menu.id);
+                    const isReadyType = menu.type === "ready";
+                    const isAvailable = menu.available !== false && menu.available !== 0;
+
+                    return (
+                      <Card
+                        key={menu.menu_id ?? menu.id}
+                        className={`flex flex-row overflow-hidden h-36 border border-gray-100 shadow-sm transition-all group bg-white relative dark:bg-black dark:border-zinc-900 dark:shadow-none
+                          ${!isAvailable ? 'opacity-80 grayscale-[0.8] bg-gray-50 dark:bg-zinc-900/50' : 'hover:shadow-md'}
+                        `}
+                      >
+                        {/* Image Section */}
+                        <div className="w-36 h-full flex-shrink-0 relative p-3">
+                          <div className="w-full h-full relative overflow-hidden rounded-xl bg-gray-100 shadow-sm dark:bg-zinc-900">
+                            {menu.image ? (
+                              <img
+                                src={menu.image}
+                                alt={menu.name}
+                                className="w-full h-full object-cover transition-transform duration-300"
+                              />
+                            ) : (
+                              <div className="w-full h-full flex flex-col items-center justify-center text-gray-400 dark:text-zinc-700">
+                                <UtensilsCrossed className="h-6 w-6 mb-1 opacity-50" />
+                                <span className="text-[10px]">ไม่มีรูป</span>
+                              </div>
+                            )}
+
+                            {!isAvailable && (
+                              <div className="absolute inset-0 bg-black/60 z-10 flex items-center justify-center backdrop-blur-[1px]">
+                                <span className="text-white font-bold text-sm border-2 border-white px-2 py-1 rounded-md transform -rotate-12 tracking-widest whitespace-nowrap">
+                                  สินค้าหมด
+                                </span>
+                              </div>
+                            )}
                           </div>
-                        )}
-
-                        {/* ✅ Overlay ป้ายสินค้าหมด */}
-                        {!isAvailable && (
-                          <div className="absolute inset-0 bg-black/60 z-10 flex items-center justify-center backdrop-blur-[1px]">
-                            <span className="text-white font-bold text-sm border-2 border-white px-2 py-1 rounded-md transform -rotate-12 tracking-widest whitespace-nowrap">
-                              สินค้าหมด
-                            </span>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-
-                    {/* Content Section */}
-                    <div className="flex flex-col justify-between flex-1 p-4 pl-1">
-                      <div>
-                        <div className="flex justify-between items-start">
-                          <h3 className={`font-bold line-clamp-1 text-sm dark:text-zinc-50 ${!isAvailable ? 'text-gray-500 decoration-gray-400' : 'text-gray-800'}`} title={menu.name}>
-                            {menu.name}
-                          </h3>
-                          {qtyInCart > 0 && (
-                            <Badge className="bg-orange-100 text-orange-700 hover:bg-orange-100 border-none px-1.5 h-5 dark:bg-orange-950/50 dark:text-orange-400">
-                              x{qtyInCart}
-                            </Badge>
-                          )}
                         </div>
-                        <p className="text-xs text-gray-500 mt-0.5 dark:text-zinc-500">{menu.category || "ทั่วไป"}</p>
-                      </div>
 
-                      <div className="flex items-center justify-between mt-1">
-                        <span className={`font-bold text-base dark:text-zinc-50 ${!isAvailable ? 'text-gray-400' : 'text-gray-900'}`}>
-                          {Number(menu.price).toLocaleString()} <span className="text-[10px] font-normal text-gray-500 dark:text-zinc-500">บ.</span>
-                        </span>
-
-                        <div onClick={(e) => e.stopPropagation()}>
-                          {/* ✅ Logic ปุ่มกด: 
-                             - ถ้ามีในตะกร้า แสดงปุ่ม + - ปกติ แต่ถ้าสินค้าหมด ปุ่ม + จะกดไม่ได้ (disabled) 
-                             - ถ้าไม่มีในตะกร้า และสินค้าหมด ปุ่มใหญ่จะกดไม่ได้และเปลี่ยน icon
-                          */}
-                          {qtyInCart > 0 ? (
-                            <div className="flex items-center bg-gray-100 rounded-full p-1 h-8 shadow-inner dark:bg-zinc-900 dark:border dark:border-zinc-800">
-                              <Button
-                                size="icon"
-                                className="h-6 w-6 rounded-full bg-white text-gray-700 shadow-sm hover:bg-red-50 hover:text-red-600 dark:bg-zinc-800 dark:text-zinc-300 dark:hover:bg-red-950/50 dark:hover:text-red-400"
-                                onClick={() => decreaseFromCart(menu)}
-                              >
-                                {qtyInCart === 1 ? <Trash2 className="h-3 w-3" /> : <Minus className="h-3 w-3" />}
-                              </Button>
-
-                              <span className="w-8 text-center text-sm font-bold text-gray-800 dark:text-zinc-50">{qtyInCart}</span>
-
-                              <Button
-                                size="icon"
-                                disabled={!isAvailable} // 🔒 ล็อคปุ่มบวกถ้าของหมด
-                                className={`h-6 w-6 rounded-full shadow-sm text-white
-                                  ${!isAvailable
-                                    ? 'bg-gray-300 dark:bg-zinc-700 cursor-not-allowed'
-                                    : 'bg-orange-600 hover:bg-orange-700 dark:bg-orange-700 dark:hover:bg-orange-600'}
-                                `}
-                                onClick={() => {
-                                  if (isAvailable) {
-                                    if (isReadyType) {
-                                      addToCart(menu, "", 1);
-                                    } else {
-                                      setSelectedMenu(menu);
-                                      setNote("");
-                                      setQuantity(1);
-                                      setShowDialog(true);
-                                    }
-                                  }
-                                }}
-                              >
-                                <Plus className="h-3 w-3" />
-                              </Button>
+                        {/* Content Section */}
+                        <div className="flex flex-col justify-between flex-1 p-4 pl-1">
+                          <div>
+                            <div className="flex justify-between items-start">
+                              <h3 className={`font-bold line-clamp-1 text-sm dark:text-zinc-50 ${!isAvailable ? 'text-gray-500 decoration-gray-400' : 'text-gray-800'}`} title={menu.name}>
+                                {menu.name}
+                              </h3>
+                              {qtyInCart > 0 && (
+                                <Badge className="bg-orange-100 text-orange-700 hover:bg-orange-100 border-none px-1.5 h-5 dark:bg-orange-950/50 dark:text-orange-400">
+                                  x{qtyInCart}
+                                </Badge>
+                              )}
                             </div>
-                          ) : (
-                            // ปุ่มใหญ่ (ยังไม่ได้เพิ่มลงตะกร้า)
-                            <Button
-                              size="icon"
-                              disabled={!isAvailable} // 🔒 ล็อคปุ่ม
-                              className={`h-8 w-8 rounded-full transition-colors 
-                                ${!isAvailable
-                                  ? 'bg-gray-200 text-gray-400 hover:bg-gray-200 cursor-not-allowed dark:bg-zinc-800 dark:text-zinc-600'
-                                  : 'bg-orange-100 text-orange-600 hover:bg-orange-600 hover:text-white dark:bg-orange-950/30 dark:text-orange-400 dark:hover:bg-orange-700 dark:hover:text-white'}
-                              `}
-                              onClick={() => {
-                                if (isAvailable) {
-                                  if (isReadyType) { addToCart(menu, "", 1); }
-                                  else {
-                                    setSelectedMenu(menu);
-                                    setNote("");
-                                    setQuantity(1);
-                                    setShowDialog(true);
-                                  }
-                                }
-                              }}
-                            >
-                              {/* เปลี่ยนไอคอนถ้าของหมด */}
-                              {!isAvailable ? <Ban className="h-4 w-4" /> : <Plus className="h-5 w-5" />}
-                            </Button>
-                          )}
+                            <p className="text-xs text-gray-500 mt-0.5 dark:text-zinc-500">{menu.category || "ทั่วไป"}</p>
+                          </div>
+
+                          <div className="flex items-center justify-between mt-1">
+                            <span className={`font-bold text-base dark:text-zinc-50 ${!isAvailable ? 'text-gray-400' : 'text-gray-900'}`}>
+                              {Number(menu.price).toLocaleString()} <span className="text-[10px] font-normal text-gray-500 dark:text-zinc-500">บ.</span>
+                            </span>
+
+                            <div onClick={(e) => e.stopPropagation()}>
+                              {qtyInCart > 0 ? (
+                                <div className="flex items-center bg-gray-100 rounded-full p-1 h-8 shadow-inner dark:bg-zinc-900 dark:border dark:border-zinc-800">
+                                  <Button
+                                    size="icon"
+                                    className="h-6 w-6 rounded-full bg-white text-gray-700 shadow-sm hover:bg-red-50 hover:text-red-600 dark:bg-zinc-800 dark:text-zinc-300 dark:hover:bg-red-950/50 dark:hover:text-red-400"
+                                    onClick={() => decreaseFromCart(menu)}
+                                  >
+                                    {qtyInCart === 1 ? <Trash2 className="h-3 w-3" /> : <Minus className="h-3 w-3" />}
+                                  </Button>
+
+                                  <span className="w-8 text-center text-sm font-bold text-gray-800 dark:text-zinc-50">{qtyInCart}</span>
+
+                                  <Button
+                                    size="icon"
+                                    disabled={!isAvailable}
+                                    className={`h-6 w-6 rounded-full shadow-sm text-white
+                                      ${!isAvailable
+                                        ? 'bg-gray-300 dark:bg-zinc-700 cursor-not-allowed'
+                                        : 'bg-orange-600 hover:bg-orange-700 dark:bg-orange-700 dark:hover:bg-orange-600'}
+                                    `}
+                                    onClick={() => {
+                                      if (isAvailable) {
+                                        if (isReadyType) {
+                                          addToCart(menu, "", 1);
+                                        } else {
+                                          setSelectedMenu(menu);
+                                          setNote("");
+                                          setQuantity(1);
+                                          setShowDialog(true);
+                                        }
+                                      }
+                                    }}
+                                  >
+                                    <Plus className="h-3 w-3" />
+                                  </Button>
+                                </div>
+                              ) : (
+                                <Button
+                                  size="icon"
+                                  disabled={!isAvailable}
+                                  className={`h-8 w-8 rounded-full transition-colors 
+                                    ${!isAvailable
+                                      ? 'bg-gray-200 text-gray-400 hover:bg-gray-200 cursor-not-allowed dark:bg-zinc-800 dark:text-zinc-600'
+                                      : 'bg-orange-100 text-orange-600 hover:bg-orange-600 hover:text-white dark:bg-orange-950/30 dark:text-orange-400 dark:hover:bg-orange-700 dark:hover:text-white'}
+                                  `}
+                                  onClick={() => {
+                                    if (isAvailable) {
+                                      if (isReadyType) { addToCart(menu, "", 1); }
+                                      else {
+                                        setSelectedMenu(menu);
+                                        setNote("");
+                                        setQuantity(1);
+                                        setShowDialog(true);
+                                      }
+                                    }
+                                  }}
+                                >
+                                  {!isAvailable ? <Ban className="h-4 w-4" /> : <Plus className="h-5 w-5" />}
+                                </Button>
+                              )}
+                            </div>
+                          </div>
                         </div>
-                      </div>
-                    </div>
-                  </Card>
-                );
-              })
-            )}
-          </div>
+                      </Card>
+                    );
+                  })
+                )}
+              </div>
+            </>
+          )}
         </main>
 
         {/* Dialog (Popup) */}

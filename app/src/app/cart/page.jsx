@@ -7,7 +7,8 @@ import { Button } from "@/components/ui/button";
 import { AppSidebar } from "@/components/app-sidebar";
 import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { Card } from "@/components/ui/card";
-import { Trash2, Plus, Minus, ArrowLeft, ShoppingBag, Utensils, UtensilsCrossed } from "lucide-react";
+// ✅ Import Loader2 เพิ่ม
+import { Trash2, Plus, Minus, ArrowLeft, ShoppingBag, Utensils, UtensilsCrossed, Loader2 } from "lucide-react";
 
 export default function CartPage() {
     const router = useRouter();
@@ -21,6 +22,7 @@ export default function CartPage() {
 
     const [cart, setCart] = useState([]);
     const [isClient, setIsClient] = useState(false);
+    const [isLoading, setIsLoading] = useState(true); // ✅ เพิ่ม Loading State
 
     // --- 2. แก้ Redirect Logic ---
     useEffect(() => {
@@ -39,8 +41,11 @@ export default function CartPage() {
 
     useEffect(() => {
         if (!cartKey) return;
+        // จำลองการโหลดนิดนึงเพื่อให้เห็น Spinner หรือโหลดทันทีก็ได้
+        setIsLoading(true);
         const savedCart = JSON.parse(localStorage.getItem(cartKey) || "[]");
         setCart(Array.isArray(savedCart) ? savedCart : []);
+        setIsLoading(false); // ✅ โหลดเสร็จแล้วปิด Loading
     }, [cartKey]);
 
     function updateCart(newCart) {
@@ -187,7 +192,13 @@ export default function CartPage() {
 
                 {/* Main Content */}
                 <main className="p-4 sm:p-6 bg-gray-50/50 min-h-[calc(100vh-4rem-5rem)] flex flex-col gap-4 pb-32 dark:bg-black">
-                    {cart.length === 0 ? (
+                    {/* ✅ ส่วน Loading State */}
+                    {isLoading ? (
+                        <div className="flex flex-col items-center justify-center h-[60vh] gap-4">
+                            <Loader2 className="h-10 w-10 animate-spin text-orange-600" />
+                            <p className="text-sm font-medium animate-pulse text-orange-600">กำลังโหลดตะกร้า...</p>
+                        </div>
+                    ) : cart.length === 0 ? (
                         <div className="flex flex-col items-center justify-center h-[60vh] text-gray-400 gap-4">
                             <div className="bg-gray-100 p-6 rounded-full dark:bg-zinc-900">
                                 <ShoppingBag className="h-10 w-10 opacity-30 dark:text-zinc-500" />
@@ -216,7 +227,7 @@ export default function CartPage() {
                                         key={compositeKey}
                                         className="flex flex-row overflow-hidden border border-gray-100 shadow-sm hover:shadow-md transition-shadow bg-white h-28 sm:h-32 dark:bg-black dark:border-zinc-900 dark:shadow-none"
                                     >
-                                        {/* Image Section: ปรับให้สมมาตรด้วย aspect-square และ padding ที่เหมาะสม */}
+                                        {/* Image Section */}
                                         <div className="h-full aspect-square p-2 flex-shrink-0">
                                             <div
                                                 className="w-full h-full relative overflow-hidden rounded-lg bg-gray-100 shadow-sm border border-gray-100 dark:bg-zinc-900 dark:border-zinc-800"

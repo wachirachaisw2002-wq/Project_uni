@@ -18,7 +18,8 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Edit2, Trash2, ChefHat, UtensilsCrossed, ArrowLeft, Clock, CheckCircle2, BellRing, Package, ShoppingBag, User, XCircle } from "lucide-react";
+// ✅ Import Loader2 เพิ่ม
+import { Edit2, Trash2, ChefHat, UtensilsCrossed, ArrowLeft, Clock, CheckCircle2, BellRing, Package, ShoppingBag, User, XCircle, Loader2 } from "lucide-react";
 
 export default function OrdersStatusPageSplit() {
   const [currentView, setCurrentView] = useState("home");
@@ -249,23 +250,15 @@ export default function OrdersStatusPageSplit() {
     }
   };
 
-  // ✅ 1. ปรับ Logic ปุ่มกดสำหรับครัว
   const getKitchenToggle = (item) => {
     const s = (item.status || "").trim();
-
-    // ถ้าเป็นของสำเร็จรูป (Ready) ให้ปุ่มเป็น "เตรียมเสร็จ" (Complete) เลย
     if (item.type === "ready" && s !== "ทำเสร็จ" && s !== "เสิร์ฟแล้ว" && s !== "ยกเลิก") {
       return { label: "เตรียมเสร็จ", action: "complete", optimistic: "ทำเสร็จ", icon: <Package className="w-4 h-4 mr-1" /> };
     }
-
     if (s === "กำลังทำ") {
       return { label: "ทำเสร็จ", action: "complete", optimistic: "ทำเสร็จ", icon: <CheckCircle2 className="w-4 h-4 mr-1" /> };
     }
-
-    // ถ้าสถานะเป็น "ทำเสร็จ" แล้ว (รอเสิร์ฟ) ไม่ต้องแสดงปุ่มในหน้าครัว (หรือจะแสดงเป็นปุ่ม Disabled ก็ได้ แต่ซ่อนดีกว่าเพื่อความสะอาด)
     if (s === "ทำเสร็จ" || s === "เสิร์ฟแล้ว" || s === "ยกเลิก") return null;
-
-    // Default: รายการปรุงสดที่ยังไม่เริ่ม
     return { label: "เริ่มทำ", action: "start", optimistic: "กำลังทำ", icon: <ChefHat className="w-4 h-4 mr-1" /> };
   };
 
@@ -278,13 +271,10 @@ export default function OrdersStatusPageSplit() {
     [orders]
   );
 
-  // ✅ 2. ปรับ Filter ของ KitchenQueue ให้แสดง "ทั้งหมด" (ยกเว้นที่เสิร์ฟแล้ว)
   const kitchenQueue = useMemo(() => {
     const filt = (o) => {
       const items = (o.items || [])
-        // แสดงทั้งหมด ยกเว้น "เสิร์ฟแล้ว" (เพื่อให้ครัวเห็นภาพรวมทั้งหมด ทั้งของที่กำลังทำ และของที่เสร็จแล้วรอเสิร์ฟ)
         .filter((i) => i.status !== "เสิร์ฟแล้ว")
-        // .filter((i) => i.type !== "ready") // ❌ ลบบรรทัดนี้ออก เพื่อให้เห็นของสำเร็จรูปด้วย
         .filter((i) => kitchenCategory === "ทั้งหมด" || i.category === kitchenCategory);
       return { ...o, items };
     };
@@ -294,7 +284,6 @@ export default function OrdersStatusPageSplit() {
   const readyToServe = useMemo(() => {
     const filt = (o) => {
       const items = (o.items || [])
-        // Server เห็นเฉพาะ "ทำเสร็จ" หรือ "Ready" ที่ยังไม่เสิร์ฟ
         .filter((i) => i.status === "ทำเสร็จ" || (i.type === "ready" && i.status !== "เสิร์ฟแล้ว"))
         .filter((i) => serverCategory === "ทั้งหมด" || i.category === serverCategory);
       return { ...o, items };
@@ -391,10 +380,11 @@ export default function OrdersStatusPageSplit() {
         </header>
 
         <main className="p-6 bg-gray-50/50 min-h-[calc(100vh-4rem)] dark:bg-black">
+          {/* ✅ ส่วน Loading State สีส้ม */}
           {loading ? (
-            <div className="flex flex-col items-center justify-center h-64 text-gray-400 gap-4">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-500 dark:border-white"></div>
-              <p className="dark:text-zinc-500">กำลังโหลดข้อมูล...</p>
+            <div className="flex flex-col items-center justify-center h-[60vh] gap-4">
+              <Loader2 className="h-10 w-10 animate-spin text-orange-600" />
+              <p className="text-sm font-medium animate-pulse text-orange-600">กำลังโหลดรายการ...</p>
             </div>
           ) : (
             <>

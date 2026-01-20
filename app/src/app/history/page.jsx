@@ -22,7 +22,8 @@ import {
   User,
   AlertTriangle,
   ShoppingBag,
-  MessageSquare
+  MessageSquare,
+  Loader2 // ✅ Import Loader2 เพิ่ม
 } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -69,7 +70,6 @@ export default function Page() {
     fetchMe();
   }, []);
 
-  // ✅ ย้าย fetchOrders ออกมาข้างนอกเพื่อให้เรียกใช้ซ้ำได้ (เช่น ตอนบันทึกเสร็จ)
   const fetchOrders = useCallback(async () => {
     setLoading(true);
     try {
@@ -86,12 +86,10 @@ export default function Page() {
     } catch (err) { setOrders([]); } finally { setLoading(false); }
   }, []);
 
-  // เรียกใช้ครั้งแรก
   useEffect(() => {
     fetchOrders();
   }, [fetchOrders]);
 
-  // ดึงรายการอาหารในบิล
   const fetchBillItems = async (billId) => {
     setLoadingItems(true);
     try {
@@ -103,7 +101,6 @@ export default function Page() {
     } catch { setBillItems([]); return []; } finally { setLoadingItems(false); }
   };
 
-  // ✅ เปิด Dialog แก้ไข พร้อม Normalize ข้อมูล (qty)
   const handleOpenEdit = async () => {
     const bill = orders.find(o => o.bill_id === selectedBillId);
     if (!bill) return;
@@ -111,7 +108,6 @@ export default function Page() {
 
     setEditPaymentType(bill.payment_type || "เงินสด");
 
-    // Normalize: แปลง quantity หรือ qty ให้เป็น qty ตัวเดียว เพื่อความง่ายในการจัดการ
     setEditingItems(items.map(i => ({
       ...i,
       qty: Number(i.qty || i.quantity || 0),
@@ -122,7 +118,6 @@ export default function Page() {
     setEditDialogOpen(true);
   };
 
-  // ✅ บันทึกการแก้ไข (ใช้ fetchOrders ใหม่แทน window.reload)
   const handleSaveEdit = async () => {
     if (!editReason.trim()) return alert("กรุณาระบุสาเหตุ");
     setIsProcessing(true);
@@ -142,14 +137,13 @@ export default function Page() {
       });
 
       if (res.ok) {
-        await fetchOrders(); // ดึงข้อมูลใหม่
-        setEditDialogOpen(false); // ปิด Dialog แก้ไข
-        setOpen(false); // ปิด Dialog รายละเอียด
+        await fetchOrders();
+        setEditDialogOpen(false);
+        setOpen(false);
       }
     } catch (e) { alert("เกิดข้อผิดพลาด"); } finally { setIsProcessing(false); }
   };
 
-  // Filter ข้อมูล
   const filteredOrders = useMemo(() => {
     return orders.filter((o) => {
       const searchStr = search.toLowerCase();
@@ -188,131 +182,142 @@ export default function Page() {
         </header>
 
         <main className="p-4 md:p-8 space-y-6 max-w-7xl mx-auto w-full">
-          <div className="grid grid-cols-1 md:flex items-center gap-3">
-            <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-500" />
-              <Input
-                placeholder="ค้นหาเลขบิล, โต๊ะ, ชื่อพนักงาน หรือชื่อลูกค้า..."
-                value={search}
-                onChange={(e) => { setSearch(e.target.value); setPage(1); }}
-                className="pl-10 h-10 bg-zinc-50 border-zinc-200 dark:bg-zinc-900 dark:border-zinc-800 dark:text-zinc-100 rounded-xl focus-visible:ring-emerald-500"
-              />
+
+          {/* ✅ ส่วน Loading State */}
+          {loading ? (
+            <div className="flex flex-col items-center justify-center h-[60vh] gap-4">
+              <Loader2 className="h-10 w-10 animate-spin text-orange-600" />
+              <p className="text-sm font-medium animate-pulse text-orange-600">กำลังโหลดข้อมูลประวัติ...</p>
             </div>
+          ) : (
+            <>
+              <div className="grid grid-cols-1 md:flex items-center gap-3">
+                <div className="relative flex-1">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-500" />
+                  <Input
+                    placeholder="ค้นหาเลขบิล, โต๊ะ, ชื่อพนักงาน หรือชื่อลูกค้า..."
+                    value={search}
+                    onChange={(e) => { setSearch(e.target.value); setPage(1); }}
+                    className="pl-10 h-10 bg-zinc-50 border-zinc-200 dark:bg-zinc-900 dark:border-zinc-800 dark:text-zinc-100 rounded-xl focus-visible:ring-emerald-500"
+                  />
+                </div>
 
-            <Popover>
-              <PopoverTrigger asChild>
-                <Button
-                  variant="outline"
-                  className={`h-10 border-zinc-200 dark:border-zinc-800 dark:bg-zinc-900 rounded-xl transition-all
-                    ${selectedDate ? "text-emerald-600 dark:text-emerald-400 border-emerald-500/30 bg-emerald-50/50 dark:bg-emerald-900/10" : "text-zinc-500 dark:text-zinc-300"}
-                  `}
-                >
-                  <CalendarIcon className={`h-4 w-4 mr-2 ${selectedDate ? "text-emerald-500" : "text-zinc-400"}`} />
-                  {selectedDate ? format(selectedDate, "d MMM yyyy", { locale: th }) : "เลือกวันที่"}
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent
-                className="w-auto p-4 rounded-3xl shadow-2xl border-none bg-white/95 dark:bg-zinc-900/95 backdrop-blur-xl ring-1 ring-zinc-200 dark:ring-zinc-800"
-                align="end"
-              >
-                <Calendar
-                  mode="single"
-                  selected={selectedDate}
-                  onSelect={(d) => { setSelectedDate(d); setPage(1); }}
-                  locale={th}
-                  className="p-0"
-                  classNames={{
-                    day_selected: "bg-emerald-500 text-white hover:bg-emerald-600 hover:text-white focus:bg-emerald-600 focus:text-white shadow-lg shadow-emerald-500/30 scale-100",
-                    day_today: "bg-zinc-100 dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 font-bold border border-zinc-200 dark:border-zinc-700",
-                  }}
-                />
-              </PopoverContent>
-            </Popover>
-          </div>
-
-          <Card className="border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 overflow-hidden rounded-2xl shadow-sm">
-            <CardContent className="p-0">
-              <Table>
-                <TableHeader className="bg-zinc-50/50 dark:bg-zinc-900/50">
-                  <TableRow className="border-zinc-200 dark:border-zinc-800">
-                    <TableHead className="w-[100px] py-4">เลขบิล</TableHead>
-                    <TableHead className="text-center">โต๊ะ / ประเภท</TableHead>
-                    <TableHead>ยอดรวม</TableHead>
-                    <TableHead>ชำระเงิน</TableHead>
-                    <TableHead>พนักงาน</TableHead>
-                    <TableHead>วัน/เวลา</TableHead>
-                    <TableHead className="text-right"></TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {paginatedOrders.map((order) => (
-                    <TableRow
-                      key={order.bill_id}
-                      className={`group border-zinc-100 dark:border-zinc-900 transition-colors
-                        ${order.status === 'VOID' ? 'bg-red-500/5 hover:bg-red-500/10' : 'hover:bg-zinc-50 dark:hover:bg-zinc-900/40'}`}
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      className={`h-10 border-zinc-200 dark:border-zinc-800 dark:bg-zinc-900 rounded-xl transition-all
+                        ${selectedDate ? "text-emerald-600 dark:text-emerald-400 border-emerald-500/30 bg-emerald-50/50 dark:bg-emerald-900/10" : "text-zinc-500 dark:text-zinc-300"}
+                      `}
                     >
-                      <TableCell className="font-mono text-sm">
-                        <span className="text-zinc-400">#</span>{order.bill_id}
-                      </TableCell>
-
-                      <TableCell className="text-center">
-                        {order.table_id && Number(order.table_id) > 0 ? (
-                          <span className="px-2 py-0.5 bg-zinc-100 dark:bg-zinc-800 rounded text-xs font-bold border dark:border-zinc-700">
-                            {order.table_id}
-                          </span>
-                        ) : (
-                          <div className="flex flex-col items-center justify-center gap-1">
-                            <span className="px-2 py-0.5 bg-orange-50 text-orange-600 dark:bg-orange-900/20 dark:text-orange-400 rounded text-[10px] font-bold border border-orange-100 dark:border-orange-800 flex items-center gap-1">
-                              <ShoppingBag className="w-3 h-3" /> กลับบ้าน
-                            </span>
-                            {order.customer_name && (
-                              <span className="text-[10px] text-zinc-500 dark:text-zinc-400 max-w-[100px] truncate" title={order.customer_name}>
-                                {order.customer_name}
-                              </span>
-                            )}
-                          </div>
-                        )}
-                      </TableCell>
-
-                      <TableCell className="font-bold">
-                        <div className={order.status === 'VOID' ? 'line-through opacity-30' : ''}>
-                          {Number(order.total_price).toLocaleString()} ฿
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        {order.status === 'VOID' ? <Badge variant="destructive" className="bg-red-500/10 text-red-500 border-red-500/20">VOID</Badge> : getPaymentBadge(order.payment_type)}
-                      </TableCell>
-                      <TableCell className="text-sm text-zinc-500 dark:text-zinc-400">
-                        {order.cashierName}
-                      </TableCell>
-                      <TableCell className="text-xs text-zinc-400">
-                        {order.dateOnly} <span className="ml-1 opacity-50">{order.timeOnly}</span>
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <Button
-                          variant="secondary"
-                          size="sm"
-                          onClick={() => { setSelectedBillId(order.bill_id); fetchBillItems(order.bill_id); setOpen(true); }}
-                          className="h-8 bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-900 dark:hover:bg-zinc-800 dark:text-zinc-300 rounded-lg"
-                        >
-                          <Eye className="h-3.5 w-3.5 mr-1.5" /> ดูบิล
-                        </Button>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </CardContent>
-          </Card>
-
-          {totalPages > 1 && (
-            <div className="flex items-center justify-between p-2">
-              <span className="text-xs text-zinc-500">หน้า {page} จาก {totalPages}</span>
-              <div className="flex gap-1">
-                <Button variant="outline" size="icon" onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1} className="h-8 w-8 rounded-lg border-zinc-200 dark:border-zinc-800"><ChevronLeft className="h-4 w-4" /></Button>
-                <Button variant="outline" size="icon" onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page === totalPages} className="h-8 w-8 rounded-lg border-zinc-200 dark:border-zinc-800"><ChevronRight className="h-4 w-4" /></Button>
+                      <CalendarIcon className={`h-4 w-4 mr-2 ${selectedDate ? "text-emerald-500" : "text-zinc-400"}`} />
+                      {selectedDate ? format(selectedDate, "d MMM yyyy", { locale: th }) : "เลือกวันที่"}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent
+                    className="w-auto p-4 rounded-3xl shadow-2xl border-none bg-white/95 dark:bg-zinc-900/95 backdrop-blur-xl ring-1 ring-zinc-200 dark:ring-zinc-800"
+                    align="end"
+                  >
+                    <Calendar
+                      mode="single"
+                      selected={selectedDate}
+                      onSelect={(d) => { setSelectedDate(d); setPage(1); }}
+                      locale={th}
+                      className="p-0"
+                      classNames={{
+                        day_selected: "bg-emerald-500 text-white hover:bg-emerald-600 hover:text-white focus:bg-emerald-600 focus:text-white shadow-lg shadow-emerald-500/30 scale-100",
+                        day_today: "bg-zinc-100 dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 font-bold border border-zinc-200 dark:border-zinc-700",
+                      }}
+                    />
+                  </PopoverContent>
+                </Popover>
               </div>
-            </div>
+
+              <Card className="border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 overflow-hidden rounded-2xl shadow-sm">
+                <CardContent className="p-0">
+                  <Table>
+                    <TableHeader className="bg-zinc-50/50 dark:bg-zinc-900/50">
+                      <TableRow className="border-zinc-200 dark:border-zinc-800">
+                        <TableHead className="w-[100px] py-4">เลขบิล</TableHead>
+                        <TableHead className="text-center">โต๊ะ / ประเภท</TableHead>
+                        <TableHead>ยอดรวม</TableHead>
+                        <TableHead>ชำระเงิน</TableHead>
+                        <TableHead>พนักงาน</TableHead>
+                        <TableHead>วัน/เวลา</TableHead>
+                        <TableHead className="text-right"></TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {paginatedOrders.map((order) => (
+                        <TableRow
+                          key={order.bill_id}
+                          className={`group border-zinc-100 dark:border-zinc-900 transition-colors
+                            ${order.status === 'VOID' ? 'bg-red-500/5 hover:bg-red-500/10' : 'hover:bg-zinc-50 dark:hover:bg-zinc-900/40'}`}
+                        >
+                          <TableCell className="font-mono text-sm">
+                            <span className="text-zinc-400">#</span>{order.bill_id}
+                          </TableCell>
+
+                          <TableCell className="text-center">
+                            {order.table_id && Number(order.table_id) > 0 ? (
+                              <span className="px-2 py-0.5 bg-zinc-100 dark:bg-zinc-800 rounded text-xs font-bold border dark:border-zinc-700">
+                                {order.table_id}
+                              </span>
+                            ) : (
+                              <div className="flex flex-col items-center justify-center gap-1">
+                                <span className="px-2 py-0.5 bg-orange-50 text-orange-600 dark:bg-orange-900/20 dark:text-orange-400 rounded text-[10px] font-bold border border-orange-100 dark:border-orange-800 flex items-center gap-1">
+                                  <ShoppingBag className="w-3 h-3" /> กลับบ้าน
+                                </span>
+                                {order.customer_name && (
+                                  <span className="text-[10px] text-zinc-500 dark:text-zinc-400 max-w-[100px] truncate" title={order.customer_name}>
+                                    {order.customer_name}
+                                  </span>
+                                )}
+                              </div>
+                            )}
+                          </TableCell>
+
+                          <TableCell className="font-bold">
+                            <div className={order.status === 'VOID' ? 'line-through opacity-30' : ''}>
+                              {Number(order.total_price).toLocaleString()} ฿
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            {order.status === 'VOID' ? <Badge variant="destructive" className="bg-red-500/10 text-red-500 border-red-500/20">VOID</Badge> : getPaymentBadge(order.payment_type)}
+                          </TableCell>
+                          <TableCell className="text-sm text-zinc-500 dark:text-zinc-400">
+                            {order.cashierName}
+                          </TableCell>
+                          <TableCell className="text-xs text-zinc-400">
+                            {order.dateOnly} <span className="ml-1 opacity-50">{order.timeOnly}</span>
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <Button
+                              variant="secondary"
+                              size="sm"
+                              onClick={() => { setSelectedBillId(order.bill_id); fetchBillItems(order.bill_id); setOpen(true); }}
+                              className="h-8 bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-900 dark:hover:bg-zinc-800 dark:text-zinc-300 rounded-lg"
+                            >
+                              <Eye className="h-3.5 w-3.5 mr-1.5" /> ดูบิล
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </CardContent>
+              </Card>
+
+              {totalPages > 1 && (
+                <div className="flex items-center justify-between p-2">
+                  <span className="text-xs text-zinc-500">หน้า {page} จาก {totalPages}</span>
+                  <div className="flex gap-1">
+                    <Button variant="outline" size="icon" onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1} className="h-8 w-8 rounded-lg border-zinc-200 dark:border-zinc-800"><ChevronLeft className="h-4 w-4" /></Button>
+                    <Button variant="outline" size="icon" onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page === totalPages} className="h-8 w-8 rounded-lg border-zinc-200 dark:border-zinc-800"><ChevronRight className="h-4 w-4" /></Button>
+                  </div>
+                </div>
+              )}
+            </>
           )}
         </main>
 
@@ -456,10 +461,9 @@ export default function Page() {
                               <Button
                                 variant="ghost" size="icon" className="h-7 w-7"
                                 onClick={() => {
-                                  // ✅ ปรับปรุง Logic: ใช้ .map เพื่อ update แบบ Immutable
                                   setEditingItems(prev => prev.map((currItem, i) => {
                                     if (i !== idx) return currItem;
-                                    const currentQty = currItem.qty; // มั่นใจได้ว่าเป็น qty เพราะ normalize มาแล้ว
+                                    const currentQty = currItem.qty;
                                     return { ...currItem, qty: Math.max(1, currentQty - 1) };
                                   }));
                                 }}
@@ -470,7 +474,6 @@ export default function Page() {
                               <Button
                                 variant="ghost" size="icon" className="h-7 w-7"
                                 onClick={() => {
-                                  // ✅ ปรับปรุง Logic: ใช้ .map เพื่อ update แบบ Immutable
                                   setEditingItems(prev => prev.map((currItem, i) => {
                                     if (i !== idx) return currItem;
                                     return { ...currItem, qty: currItem.qty + 1 };
