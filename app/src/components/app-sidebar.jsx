@@ -45,7 +45,7 @@ const MENU_ITEMS = [
   { 
     href: "/history", 
     icon: <History size={20} />, 
-    label: "ประวัติยอดการสั่งอาหาร", 
+    label: "ประวัติยอดออเดอร์", 
     allowedRoles: ["เจ้าของร้าน", "ผู้จัดการร้าน"] 
   },
   { 

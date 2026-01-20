@@ -1,4 +1,3 @@
-// app/payment/page.jsx
 "use client";
 
 import { useState, useEffect, useMemo, useRef } from "react";
@@ -26,7 +25,6 @@ export default function PaymentPage() {
   const router = useRouter();
   const fileInputRef = useRef(null);
 
-  // --- Logic เดิม (ไม่เปลี่ยนแปลง) ---
   const tableParam = searchParams.get("table_id");
   const amountParam = searchParams.get("amount") || "0";
   const relatedTablesRaw = searchParams.get("related") || "";
@@ -196,24 +194,20 @@ export default function PaymentPage() {
     }
   };
 
-  // --- UI Section ---
   return (
     <div className="min-h-screen bg-[#F8FAFC] flex flex-col items-center py-6 px-4 dark:bg-black">
 
-      {/* Navbar แบบง่าย */}
       <div className="w-full max-w-md flex items-center justify-between mb-6">
         <Button variant="ghost" size="icon" onClick={() => router.back()} className="rounded-full hover:bg-white hover:shadow-sm">
           <ArrowLeft className="h-5 w-5 text-slate-600 dark:text-zinc-300" />
         </Button>
         <h1 className="text-lg font-semibold text-slate-700 dark:text-zinc-100">ชำระเงิน</h1>
-        <div className="w-10" /> {/* Spacer */}
+        <div className="w-10" /> 
       </div>
 
       <Card className="w-full max-w-md border-0 shadow-xl shadow-slate-200/60 rounded-3xl overflow-hidden bg-white dark:bg-zinc-900 dark:shadow-none">
 
-        {/* ส่วนแสดงยอดเงิน (Hero Section) */}
         <div className="relative bg-gradient-to-b from-blue-50 to-white pt-8 pb-4 px-6 text-center dark:from-blue-900/20 dark:to-zinc-900">
-          {/* Table Info Badge */}
           <div className="inline-flex items-center gap-2 px-4 py-1.5 bg-white border border-blue-100 rounded-full shadow-sm mb-4 dark:bg-zinc-800 dark:border-zinc-700">
             <Receipt className="w-4 h-4 text-blue-500" />
             <span className="text-sm font-medium text-slate-600 dark:text-zinc-300">
@@ -227,7 +221,6 @@ export default function PaymentPage() {
             <span className="text-xl font-medium text-slate-400 ml-2">฿</span>
           </div>
 
-          {/* Remark */}
           {remarkParam && (
             <div className="mt-4 flex justify-center">
               <div className="bg-orange-50 text-orange-600 px-3 py-1.5 rounded-lg text-xs font-medium flex items-center gap-2 border border-orange-100 dark:bg-orange-900/20 dark:border-orange-800 dark:text-orange-400">
@@ -240,7 +233,6 @@ export default function PaymentPage() {
 
         <CardContent className="px-6 pb-6 space-y-6">
 
-          {/* QR Code Section */}
           <div className="bg-white rounded-2xl border border-slate-100 p-4 shadow-sm flex flex-col items-center gap-3 dark:bg-zinc-800/50 dark:border-zinc-700">
             <div className="flex items-center gap-2 text-sm font-medium text-slate-600 dark:text-zinc-300 w-full px-2">
               <QrCode className="w-4 h-4 text-blue-500" />
@@ -255,11 +247,7 @@ export default function PaymentPage() {
 
             <div className="relative group w-full aspect-square max-w-[240px] bg-white rounded-xl border-2 border-slate-100 flex items-center justify-center overflow-hidden dark:bg-zinc-900 dark:border-zinc-700">
               {qrCode ? (
-                <>
-                  <img src={qrCode} alt="QR" className="w-full h-full object-contain p-2 mix-blend-multiply dark:mix-blend-normal" />
-                  {/* Scan Line Animation (Optional Decoration) */}
-                  <div className="absolute top-0 left-0 w-full h-1 bg-blue-500/30 shadow-[0_0_15px_rgba(59,130,246,0.5)] animate-[scan_2s_ease-in-out_infinite]" />
-                </>
+                <img src={qrCode} alt="QR" className="w-full h-full object-contain p-2 mix-blend-multiply dark:mix-blend-normal" />
               ) : (
                 <div className="flex flex-col items-center gap-3 text-slate-400">
                   <RefreshCcw className={`w-8 h-8 ${loading ? 'animate-spin' : ''}`} />
@@ -271,7 +259,6 @@ export default function PaymentPage() {
             </div>
           </div>
 
-          {/* Upload Slip Section */}
           <div>
             <h3 className="text-sm font-medium text-slate-700 mb-3 flex items-center gap-2 dark:text-zinc-300">
               <ImagePlus className="w-4 h-4" />
@@ -323,15 +310,6 @@ export default function PaymentPage() {
         </CardFooter>
       </Card>
 
-      {/* CSS Animation สำหรับเส้น Scan */}
-      <style jsx global>{`
-        @keyframes scan {
-          0% { top: 0%; opacity: 0; }
-          10% { opacity: 1; }
-          90% { opacity: 1; }
-          100% { top: 100%; opacity: 0; }
-        }
-      `}</style>
     </div>
   );
 }

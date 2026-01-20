@@ -273,6 +273,7 @@ export default function OrdersStatusPageSplit() {
     const filt = (o) => {
       const items = (o.items || [])
         .filter((i) => i.status !== "เสิร์ฟแล้ว")
+        .filter((i) => i.type !== "ready") 
         .filter((i) => kitchenCategory === "ทั้งหมด" || i.category === kitchenCategory);
       return { ...o, items };
     };
@@ -359,7 +360,7 @@ export default function OrdersStatusPageSplit() {
             <div>
               <h1 className="text-sm font-bold text-zinc-900 dark:text-zinc-100">
                 {currentView === "home" && "รายการออเดอร์"}
-                {currentView === "kitchen" && "ระบบครัว (รายการทั้งหมด)"}
+                {currentView === "kitchen" && "ระบบครัว (เฉพาะรายการปรุง)"}
                 {currentView === "server" && "ระบบเสิร์ฟ (เฉพาะรอเสิร์ฟ)"}
               </h1>
             </div>
@@ -397,7 +398,7 @@ export default function OrdersStatusPageSplit() {
                     </div>
                     <div className="text-center">
                       <h2 className="text-2xl font-bold text-gray-800 mb-2 dark:text-white">พนักงานครัว</h2>
-                      <p className="text-gray-500 mb-4 dark:text-zinc-400">ดูรายการอาหารทั้งหมด</p>
+                      <p className="text-gray-500 mb-4 dark:text-zinc-400">ดูรายการอาหารที่ต้องปรุง</p>
                       <span className={`inline-block px-4 py-1 rounded-full text-sm font-medium ${kitchenQueue.length > 0
                         ? 'bg-orange-100 text-orange-700 dark:bg-orange-900/40 dark:text-orange-400'
                         : 'bg-gray-100 text-gray-500 dark:bg-zinc-800 dark:text-zinc-500'
@@ -437,7 +438,7 @@ export default function OrdersStatusPageSplit() {
                         <ChefHat className="h-6 w-6 text-emerald-600 dark:text-emerald-400" />
                       </div>
                       <div>
-                        <CardTitle className="text-xl text-gray-800 dark:text-white">รายการอาหาร (ทั้งหมด)</CardTitle>
+                        <CardTitle className="text-xl text-gray-800 dark:text-white">รายการอาหาร (เฉพาะที่ต้องปรุง)</CardTitle>
                       </div>
                     </div>
                     <Select value={kitchenCategory} onValueChange={setKitchenCategory}>
