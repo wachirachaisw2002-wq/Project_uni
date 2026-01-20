@@ -9,7 +9,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Dialog, DialogContent } from "@/components/ui/dialog";
+// ✅ 1. เพิ่ม DialogTitle เข้ามาใน import
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import {
   Loader2, CalendarIcon, MapPin,
   Image as ImageIcon, AlertCircle
@@ -310,6 +311,9 @@ export default function TimeReportPage() {
           {/* Photo Modal */}
           <Dialog open={photoModalOpen} onOpenChange={setPhotoModalOpen}>
             <DialogContent className="sm:max-w-md p-0 overflow-hidden bg-black border-zinc-800">
+              {/* ✅ 2. เพิ่ม DialogTitle ตรงนี้และซ่อนไว้ (Visually Hidden) */}
+              <DialogTitle className="sr-only">รูปถ่ายยืนยัน</DialogTitle>
+
               <div className="relative w-full aspect-[3/4] md:aspect-square flex items-center justify-center bg-black">
                 {currentPhoto && (
                   <img

@@ -26,8 +26,13 @@ import {
   SelectTrigger,
   SelectValue
 } from "@/components/ui/select";
-// ✅ Import Loader2 เพิ่ม
-import { Edit2, Trash2, Eye, EyeOff, Search, UserPlus, FileText, X, Phone, Mail, MapPin, Calendar, CreditCard, Briefcase, User, Loader2 } from "lucide-react";
+// ✅ Import Calendar และส่วนที่เกี่ยวข้อง
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { format } from "date-fns";
+import { th } from "date-fns/locale";
+import { cn } from "@/lib/utils";
+import { Edit2, Trash2, Eye, EyeOff, Search, UserPlus, FileText, X, Phone, Mail, MapPin, Calendar as CalendarIcon, CreditCard, Briefcase, User, Loader2 } from "lucide-react";
 
 export default function Page() {
   const POSITIONS = ["เจ้าของร้าน", "ผู้จัดการร้าน", "พนักงานทั่วไป", "พนักงานในครัว"];
@@ -35,17 +40,15 @@ export default function Page() {
   const EMPLOYMENT_TYPES = ["Full-time", "Part-time"];
 
   const [employees, setEmployees] = useState([]);
-  const [loading, setLoading] = useState(true); // ✅ เพิ่ม State Loading
+  const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [activePosition, setActivePosition] = useState("ทั้งหมด");
   const [activeStatus, setActiveStatus] = useState("ทั้งหมด");
 
-  // State สำหรับ Dialog แก้ไข/เพิ่ม
   const [open, setOpen] = useState(false);
   const [editingEmployee, setEditingEmployee] = useState(null);
   const [showPassword, setShowPassword] = useState(false);
 
-  // State สำหรับ Dialog ดูข้อมูล (View Only)
   const [viewOpen, setViewOpen] = useState(false);
   const [viewingEmployee, setViewingEmployee] = useState(null);
 
@@ -53,6 +56,10 @@ export default function Page() {
   const [position, setPosition] = useState("");
   const [status, setStatus] = useState("");
   const [empType, setEmpType] = useState("");
+
+  // ✅ State สำหรับวันที่ (Calendar)
+  const [birthDate, setBirthDate] = useState();
+  const [startDate, setStartDate] = useState();
 
   const normalizeEmployee = (raw, idx = 0) => {
     const id = raw?.employee_id ?? raw?.id ?? null;
@@ -77,7 +84,7 @@ export default function Page() {
   };
 
   const refreshEmployees = async () => {
-    setLoading(true); // ✅ เริ่มโหลด
+    setLoading(true);
     try {
       const res = await fetch("/api/employees", { cache: "no-store" });
       if (!res.ok) return;
@@ -87,7 +94,7 @@ export default function Page() {
     } catch (error) {
       console.error("Error loading employees:", error);
     } finally {
-      setLoading(false); // ✅ โหลดเสร็จ
+      setLoading(false);
     }
   };
 
@@ -115,6 +122,11 @@ export default function Page() {
     setPosition(POSITIONS[2]);
     setStatus(STATUS[0]);
     setEmpType(EMPLOYMENT_TYPES[0]);
+
+    // ✅ Reset วันเกิด และ Set วันเริ่มงานเป็น "วันนี้" อัตโนมัติ
+    setBirthDate(undefined);
+    setStartDate(new Date());
+
     setShowPassword(false);
     setOpen(true);
   };
@@ -124,6 +136,11 @@ export default function Page() {
     setPosition(emp.position || POSITIONS[2]);
     setStatus(emp.status || STATUS[0]);
     setEmpType(emp.employment_type || EMPLOYMENT_TYPES[0]);
+
+    // ✅ Set วันที่จากข้อมูลเดิม
+    setBirthDate(emp.birth_date ? new Date(emp.birth_date) : undefined);
+    setStartDate(emp.start_date ? new Date(emp.start_date) : undefined);
+
     setShowPassword(false);
     setOpen(true);
   };
@@ -147,12 +164,17 @@ export default function Page() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     const formData = new FormData(e.currentTarget);
+
+    // ✅ แปลง Date Object เป็น String (yyyy-MM-dd) ก่อนส่ง
+    const formattedBirthDate = birthDate ? format(birthDate, "yyyy-MM-dd") : null;
+    const formattedStartDate = startDate ? format(startDate, "yyyy-MM-dd") : null;
+
     const payload = {
       name_th: formData.get("name_th"),
       name_en: formData.get("name_en"),
       nickname: formData.get("nickname") || null,
       id_card_number: formData.get("id_card_number") || null,
-      birth_date: formData.get("birth_date") || null,
+      birth_date: formattedBirthDate, // ใช้ค่าจาก State
       address: formData.get("address"),
       phone: formData.get("phone"),
       line_id: formData.get("line_id"),
@@ -161,7 +183,7 @@ export default function Page() {
       position: position,
       status: status,
       employment_type: empType,
-      start_date: formData.get("start_date") || null,
+      start_date: formattedStartDate, // ใช้ค่าจาก State
       salary: Number(formData.get("salary")),
     };
 
@@ -191,7 +213,6 @@ export default function Page() {
     return "bg-zinc-500/10 text-zinc-500 dark:bg-zinc-500/5 dark:text-zinc-400";
   }
 
-  // Helper สำหรับดึงตัวอักษรย่อชื่อ
   const getInitials = (name) => {
     return name ? name.charAt(0).toUpperCase() : "?";
   };
@@ -214,7 +235,6 @@ export default function Page() {
 
         <main className="p-6 min-h-[calc(100vh-4rem)] space-y-6 bg-zinc-50/30 dark:bg-black">
 
-          {/* ✅ ส่วน Loading State */}
           {loading ? (
             <div className="flex flex-col items-center justify-center h-[60vh] gap-4">
               <Loader2 className="h-10 w-10 animate-spin text-orange-600" />
@@ -227,7 +247,6 @@ export default function Page() {
                   <div className="relative">
                     <Search className="absolute left-3 top-2.5 h-4 w-4 text-zinc-400" />
                     <Input
-                      placeholder="ค้นหาชื่อ, ชื่อเล่น หรือ เลขบัตร ปชช...."
                       value={searchQuery}
                       onChange={(e) => setSearchQuery(e.target.value)}
                       className="pl-9 dark:bg-zinc-950 dark:border-zinc-800 dark:text-zinc-100"
@@ -239,7 +258,7 @@ export default function Page() {
                       <Label className="text-xs font-medium text-zinc-500 uppercase tracking-wider">ตำแหน่งงาน</Label>
                       <Select value={activePosition} onValueChange={setActivePosition}>
                         <SelectTrigger className="w-full dark:bg-zinc-950 dark:border-zinc-800">
-                          <SelectValue placeholder="ทั้งหมด" />
+                          <SelectValue />
                         </SelectTrigger>
                         <SelectContent className="dark:bg-zinc-900 dark:border-zinc-800">
                           <SelectItem value="ทั้งหมด">แสดงทั้งหมด</SelectItem>
@@ -251,7 +270,7 @@ export default function Page() {
                       <Label className="text-xs font-medium text-zinc-500 uppercase tracking-wider">สถานะการทำงาน</Label>
                       <Select value={activeStatus} onValueChange={setActiveStatus}>
                         <SelectTrigger className="w-full dark:bg-zinc-950 dark:border-zinc-800">
-                          <SelectValue placeholder="ทั้งหมด" />
+                          <SelectValue />
                         </SelectTrigger>
                         <SelectContent className="dark:bg-zinc-900 dark:border-zinc-800">
                           <SelectItem value="ทั้งหมด">แสดงทั้งหมด</SelectItem>
@@ -419,7 +438,7 @@ export default function Page() {
                             <div className="flex flex-col gap-1">
                               <span className="text-xs text-zinc-400">วันที่เริ่มงาน</span>
                               <div className="flex items-center gap-2">
-                                <Calendar className="w-3 h-3 text-zinc-400" />
+                                <CalendarIcon className="w-3 h-3 text-zinc-400" />
                                 <span className="text-sm font-medium">{viewingEmployee.start_date ? new Date(viewingEmployee.start_date).toLocaleDateString('th-TH', { dateStyle: 'long' }) : '-'}</span>
                               </div>
                             </div>
@@ -456,15 +475,15 @@ export default function Page() {
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div className="space-y-2">
                           <Label className="dark:text-zinc-400">ชื่อ-นามสกุล (ไทย)</Label>
-                          <Input name="name_th" defaultValue={editingEmployee?.name_th} placeholder="วชิรชัย สุวรรณ์" required className="dark:bg-zinc-900 dark:border-zinc-800" />
+                          <Input name="name_th" defaultValue={editingEmployee?.name_th} required className="dark:bg-zinc-900 dark:border-zinc-800" />
                         </div>
                         <div className="space-y-2">
                           <Label className="dark:text-zinc-400">Full Name (English)</Label>
-                          <Input name="name_en" defaultValue={editingEmployee?.name_en} placeholder="Wachirachai Suwan" className="dark:bg-zinc-900 dark:border-zinc-800" />
+                          <Input name="name_en" defaultValue={editingEmployee?.name_en} className="dark:bg-zinc-900 dark:border-zinc-800" />
                         </div>
                         <div className="space-y-2">
                           <Label className="dark:text-zinc-400">ชื่อเล่น</Label>
-                          <Input name="nickname" defaultValue={editingEmployee?.nickname} placeholder="ชื่อเล่น" className="dark:bg-zinc-900 dark:border-zinc-800" />
+                          <Input name="nickname" defaultValue={editingEmployee?.nickname} className="dark:bg-zinc-900 dark:border-zinc-800" />
                         </div>
 
                         <div className="space-y-2">
@@ -472,7 +491,6 @@ export default function Page() {
                           <Input
                             name="id_card_number"
                             defaultValue={editingEmployee?.id_card_number}
-                            placeholder="เลข 13 หลัก"
                             maxLength={13}
                             inputMode="numeric"
                             className="dark:bg-zinc-900 dark:border-zinc-800"
@@ -482,21 +500,52 @@ export default function Page() {
                           />
                         </div>
 
-                        <div className="space-y-2">
+                        {/* ✅ ใช้ Calendar Component สำหรับวันเกิด */}
+                        <div className="space-y-2 flex flex-col">
                           <Label className="dark:text-zinc-400">วัน/เดือน/ปีเกิด</Label>
-                          <Input type="date" name="birth_date" defaultValue={editingEmployee?.birth_date} required className="dark:bg-zinc-900 dark:border-zinc-800" />
+                          <Popover>
+                            <PopoverTrigger asChild>
+                              <Button
+                                variant={"outline"}
+                                className={cn(
+                                  "w-full pl-3 text-left font-normal dark:bg-zinc-900 dark:border-zinc-800",
+                                  !birthDate && "text-muted-foreground"
+                                )}
+                              >
+                                {birthDate ? (
+                                  format(birthDate, "dd/MM/yyyy", { locale: th })
+                                ) : (
+                                  <span>เลือกวันที่</span>
+                                )}
+                                <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                              </Button>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-auto p-0" align="start">
+                              <Calendar
+                                mode="single"
+                                selected={birthDate}
+                                onSelect={setBirthDate}
+                                disabled={(date) =>
+                                  date > new Date() || date < new Date("1900-01-01")
+                                }
+                                initialFocus
+                                locale={th}
+                              />
+                            </PopoverContent>
+                          </Popover>
                         </div>
+
                         <div className="space-y-2">
                           <Label className="dark:text-zinc-400">เบอร์โทรศัพท์</Label>
-                          <Input name="phone" defaultValue={editingEmployee?.phone} placeholder="08x-xxx-xxxx" required className="dark:bg-zinc-900 dark:border-zinc-800" />
+                          <Input name="phone" defaultValue={editingEmployee?.phone} required className="dark:bg-zinc-900 dark:border-zinc-800" />
                         </div>
                         <div className="space-y-2">
                           <Label className="dark:text-zinc-400">Line ID</Label>
-                          <Input name="line_id" defaultValue={editingEmployee?.line_id} placeholder="ID สำหรับติดต่อ" className="dark:bg-zinc-900 dark:border-zinc-800" />
+                          <Input name="line_id" defaultValue={editingEmployee?.line_id} className="dark:bg-zinc-900 dark:border-zinc-800" />
                         </div>
                         <div className="col-span-1 md:col-span-2 space-y-2">
                           <Label className="dark:text-zinc-400">ที่อยู่ปัจจุบัน</Label>
-                          <Textarea name="address" defaultValue={editingEmployee?.address} placeholder="บ้านเลขที่, แขวง, เขต..." rows={2} className="dark:bg-zinc-900 dark:border-zinc-800" />
+                          <Textarea name="address" defaultValue={editingEmployee?.address} rows={2} className="dark:bg-zinc-900 dark:border-zinc-800" />
                         </div>
                       </div>
                     </div>
@@ -526,10 +575,39 @@ export default function Page() {
                             </SelectContent>
                           </Select>
                         </div>
-                        <div className="space-y-2">
+
+                        {/* ✅ ใช้ Calendar Component สำหรับวันที่เริ่มงาน */}
+                        <div className="space-y-2 flex flex-col">
                           <Label className="dark:text-zinc-400">วันที่เริ่มงาน</Label>
-                          <Input type="date" name="start_date" defaultValue={editingEmployee?.start_date} required className="dark:bg-zinc-900 dark:border-zinc-800" />
+                          <Popover>
+                            <PopoverTrigger asChild>
+                              <Button
+                                variant={"outline"}
+                                className={cn(
+                                  "w-full pl-3 text-left font-normal dark:bg-zinc-900 dark:border-zinc-800",
+                                  !startDate && "text-muted-foreground"
+                                )}
+                              >
+                                {startDate ? (
+                                  format(startDate, "dd/MM/yyyy", { locale: th })
+                                ) : (
+                                  <span>เลือกวันที่</span>
+                                )}
+                                <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                              </Button>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-auto p-0" align="start">
+                              <Calendar
+                                mode="single"
+                                selected={startDate}
+                                onSelect={setStartDate}
+                                initialFocus
+                                locale={th}
+                              />
+                            </PopoverContent>
+                          </Popover>
                         </div>
+
                         <div className="space-y-2">
                           <Label className="dark:text-zinc-400">สถานะปัจจุบัน</Label>
                           <Select value={status} onValueChange={setStatus}>
@@ -563,7 +641,6 @@ export default function Page() {
                             <Input
                               type={showPassword ? "text" : "password"}
                               name="password"
-                              placeholder={editingEmployee ? "เว้นว่างถ้าไม่เปลี่ยน" : "ตั้งรหัสผ่าน"}
                               className="pr-10 dark:bg-zinc-900 dark:border-zinc-800"
                             />
                             <button
