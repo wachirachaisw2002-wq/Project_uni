@@ -99,6 +99,7 @@ export default function LoginPage() {
                 <Input
                   id="email"
                   type="email"
+                  placeholder="อีเมล"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   className="pl-10 h-12 border-gray-300 dark:bg-black dark:border-zinc-800 dark:text-white dark:placeholder:text-zinc-700 focus-visible:ring-gray-400 dark:focus-visible:ring-white transition-all"
@@ -117,6 +118,7 @@ export default function LoginPage() {
                 <Input
                   id="password"
                   type={showPassword ? "text" : "password"}
+                  placeholder="รหัสผ่าน"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   className="pl-10 pr-10 h-12 border-gray-300 dark:bg-black dark:border-zinc-800 dark:text-white dark:placeholder:text-zinc-700 focus-visible:ring-gray-400 dark:focus-visible:ring-white transition-all"
