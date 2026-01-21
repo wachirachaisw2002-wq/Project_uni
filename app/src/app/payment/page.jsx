@@ -222,7 +222,6 @@ export default function PaymentPage() {
 
           {remarkParam && (
             <div className="mt-4 flex justify-center">
-              {/* ใช้สีส้มอ่อนๆ สำหรับ Remark ให้เข้ากับธีม */}
               <div className="bg-[#FF5722]/10 text-[#FF5722] px-3 py-1.5 rounded-lg text-xs font-medium flex items-center gap-2 border border-[#FF5722]/20 dark:bg-[#FF5722]/20 dark:border-[#FF5722]/30">
                 <MessageSquare className="w-3.5 h-3.5" />
                 {remarkParam}
