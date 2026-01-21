@@ -448,7 +448,7 @@ function BillingContent() {
                 </div>
                 <div className="space-y-3">
                   <div className="relative">
-                    <Label className="text-[10px] uppercase font-bold text-zinc-400 mb-1.5 block text-center">รับเงินมา (Cash Received)</Label>
+                    <Label className="text-[10px] uppercase font-bold text-zinc-400 mb-1.5 block text-center">รับเงินมา</Label>
                     <Input
                       type="number"
                       className="h-16 text-3xl font-black rounded-2xl text-center border-2 focus-visible:ring-0 focus-visible:border-orange-500 transition-all dark:bg-zinc-800 dark:border-zinc-700 dark:text-zinc-100"
@@ -463,7 +463,7 @@ function BillingContent() {
                   changeAmount >= 0 ? 'bg-green-50 border-green-100 text-green-700 dark:bg-green-900/20 dark:border-green-900/30 dark:text-green-400' : 'bg-red-50 border-red-100 text-red-600 dark:bg-red-900/20 dark:border-red-900/30 dark:text-red-400'
                   }`}>
                   <span className="text-[10px] font-black uppercase tracking-widest mb-1">
-                    {changeAmount >= 0 ? "เงินทอน (Change)" : "ยอดขาด (Remaining)"}
+                    {changeAmount >= 0 ? "เงินทอน" : "ยอดขาด"}
                   </span>
                   <div className="flex items-center gap-2">
                     {changeAmount >= 0 && cashReceived !== "" && <CheckCircle2 className="w-6 h-6" />}

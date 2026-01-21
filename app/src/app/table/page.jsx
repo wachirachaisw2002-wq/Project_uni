@@ -21,7 +21,7 @@ import {
   Bike,
   Clock,
   Phone,
-  Loader2 
+  Loader2
 } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import {
@@ -35,7 +35,7 @@ import {
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 
-const fetchDashboardData = async () => {
+const fetchTableData = async () => {
   const res = await fetch("/api/tables", { cache: "no-store" });
   if (!res.ok) throw new Error("Failed to fetch data");
   return res.json();
@@ -54,7 +54,7 @@ const updateTable = async (tableId, action, payload = {}) => {
 export default function TableStatusDashboard() {
   const [tables, setTables] = useState([]);
   const [activeTakeaways, setActiveTakeaways] = useState([]);
-  const [isLoading, setIsLoading] = useState(true); 
+  const [isLoading, setIsLoading] = useState(true);
   const router = useRouter();
 
   const [isMoveOpen, setIsMoveOpen] = useState(false);
@@ -64,13 +64,13 @@ export default function TableStatusDashboard() {
   const [selectedTable, setSelectedTable] = useState(null);
   const [targetTableId, setTargetTableId] = useState("");
   const [mergeTargetId, setMergeTargetId] = useState("");
-
+  
   const [takeoutName, setTakeoutName] = useState("");
   const [takeoutPhone, setTakeoutPhone] = useState("");
 
   const loadData = async () => {
     try {
-      const data = await fetchDashboardData();
+      const data = await fetchTableData();
       if (data.tables) {
         setTables(data.tables);
         setActiveTakeaways(data.takeaways || []);
@@ -79,9 +79,9 @@ export default function TableStatusDashboard() {
         setActiveTakeaways([]);
       }
     } catch (error) {
-      console.error("Error loading dashboard:", error);
+      console.error("Error loading tabletakeaway:", error);
     } finally {
-      setIsLoading(false); 
+      setIsLoading(false);
     }
   };
 
@@ -112,7 +112,7 @@ export default function TableStatusDashboard() {
 
   const handleConfirmTakeout = () => {
     if (!takeoutName.trim()) {
-      alert("กรุณาระบุชื่อลูกค้า หรือ หมายเลขคิว");
+      alert("กรุณาระบุชื่อลูกค้า");
       return;
     }
     setIsTakeoutOpen(false);

@@ -360,8 +360,8 @@ export default function OrdersStatusPageSplit() {
             <div>
               <h1 className="text-sm font-bold text-zinc-900 dark:text-zinc-100">
                 {currentView === "home" && "รายการออเดอร์"}
-                {currentView === "kitchen" && "ระบบครัว (เฉพาะรายการปรุง)"}
-                {currentView === "server" && "ระบบเสิร์ฟ (เฉพาะรอเสิร์ฟ)"}
+                {currentView === "kitchen" && "ระบบครัว"}
+                {currentView === "server" && "ระบบเสิร์ฟ"}
               </h1>
             </div>
           </div>
@@ -438,7 +438,7 @@ export default function OrdersStatusPageSplit() {
                         <ChefHat className="h-6 w-6 text-emerald-600 dark:text-emerald-400" />
                       </div>
                       <div>
-                        <CardTitle className="text-xl text-gray-800 dark:text-white">รายการอาหาร (เฉพาะที่ต้องปรุง)</CardTitle>
+                        <CardTitle className="text-xl text-gray-800 dark:text-white">รายการอาหาร</CardTitle>
                       </div>
                     </div>
                     <Select value={kitchenCategory} onValueChange={setKitchenCategory}>

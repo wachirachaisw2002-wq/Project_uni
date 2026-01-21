@@ -25,10 +25,8 @@ import {
   SidebarMenu,
 } from "@/components/ui/sidebar";
 
-// นำเข้า Component Logo
 import Logo from "@/components/ui/logo";
 
-// ✅ 1. กำหนดสิทธิ์ให้แต่ละเมนู (allowedRoles)
 const MENU_ITEMS = [
   { 
     href: "/table", 
@@ -58,7 +56,7 @@ const MENU_ITEMS = [
     href: "/attendance", 
     icon: <Clock size={20} />, 
     label: "บันทึกเวลาทำงาน", 
-    allowedRoles: ["เจ้าของร้าน", "ผู้จัดการร้าน", "พนักงานทั่วไป", "พนักงานในครัว"] // ทุกคนต้องลงเวลา
+    allowedRoles: ["เจ้าของร้าน", "ผู้จัดการร้าน", "พนักงานทั่วไป", "พนักงานในครัว"]
   },
   { 
     href: "/time-report", 
@@ -82,10 +80,9 @@ const MENU_ITEMS = [
 
 export function AppSidebar() {
   const [user, setUser] = useState({});
-  const [userPosition, setUserPosition] = useState(""); // ✅ State สำหรับเก็บตำแหน่ง
+  const [userPosition, setUserPosition] = useState("");
 
   useEffect(() => {
-    // ✅ ดึงตำแหน่งจาก LocalStorage ทันทีที่โหลดหน้าเว็บ
     const storedPosition = typeof window !== "undefined" ? localStorage.getItem("userPosition") : null;
     if (storedPosition) {
       setUserPosition(storedPosition);
@@ -103,8 +100,7 @@ export function AppSidebar() {
         }
         const data = await res.json();
         setUser(data);
-        
-        // อัปเดตตำแหน่งจาก API อีกครั้งเพื่อความชัวร์ (กรณี localStorage เก่า)
+
         if (data.position) {
           setUserPosition(data.position);
           localStorage.setItem("userPosition", data.position);
@@ -114,8 +110,6 @@ export function AppSidebar() {
       }
     })();
   }, []);
-
-  // ✅ กรองเมนูตามตำแหน่ง (ถ้ายังไม่โหลดตำแหน่ง ให้แสดง array ว่าง หรือเมนูพื้นฐาน)
   const filteredItems = userPosition 
     ? MENU_ITEMS.filter(item => item.allowedRoles.includes(userPosition))
     : [];
@@ -149,7 +143,6 @@ export function AppSidebar() {
       <SidebarContent>
         <SidebarGroup>
           <SidebarMenu>
-            {/* ✅ ใช้ filteredItems แทน sidebarItems เดิม */}
             {filteredItems.map((item) => (
               <SidebarMenuItem key={item.href}>
                 <SidebarMenuButton asChild>
