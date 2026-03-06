@@ -51,20 +51,17 @@ const updateTable = async (tableId, action, payload = {}) => {
   return res.json();
 };
 
-export default function TableStatusDashboard() {
+export default function TableStatus() {
   const [tables, setTables] = useState([]);
   const [activeTakeaways, setActiveTakeaways] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const router = useRouter();
-
   const [isMoveOpen, setIsMoveOpen] = useState(false);
   const [isMergeOpen, setIsMergeOpen] = useState(false);
   const [isTakeoutOpen, setIsTakeoutOpen] = useState(false);
-
   const [selectedTable, setSelectedTable] = useState(null);
   const [targetTableId, setTargetTableId] = useState("");
   const [mergeTargetId, setMergeTargetId] = useState("");
-  
   const [takeoutName, setTakeoutName] = useState("");
   const [takeoutPhone, setTakeoutPhone] = useState("");
 
@@ -104,7 +101,7 @@ export default function TableStatusDashboard() {
     }
   };
 
-  const handleOpenTakeoutModal = () => {
+  const handleOpenTakeout = () => {
     setTakeoutName("");
     setTakeoutPhone("");
     setIsTakeoutOpen(true);
@@ -153,7 +150,7 @@ export default function TableStatusDashboard() {
     }
   };
 
-  const openMoveModal = (table) => {
+  const openMove = (table) => {
     setSelectedTable(table);
     setTargetTableId("");
     setIsMoveOpen(true);
@@ -171,7 +168,7 @@ export default function TableStatusDashboard() {
     }
   };
 
-  const openMergeModal = (table) => {
+  const openMerge = (table) => {
     setSelectedTable(table);
     setMergeTargetId("");
     setIsMergeOpen(true);
@@ -179,24 +176,48 @@ export default function TableStatusDashboard() {
 
   const handleConfirmMerge = async () => {
     if (!selectedTable || !mergeTargetId) return;
+
     const targetTableObj = tables.find(t => String(t.table_id) === String(mergeTargetId));
     if (!targetTableObj) return;
 
+    if (selectedTable.status === "รอชำระ" || targetTableObj.status === "รอชำระ") {
+      alert("ไม่สามารถรวมโต๊ะได้ เนื่องจากมีโต๊ะที่กำลังอยู่ในสถานะ 'รอชำระ' (กำลังเช็คบิล)");
+      return;
+    }
+
     let sourceId, masterId;
-    if ((selectedTable.group_id || selectedTable.status === "มีลูกค้า") && !targetTableObj.group_id && targetTableObj.status === "ว่าง") {
-      sourceId = targetTableObj.table_id;
+    if (
+      (selectedTable.status === "มีลูกค้า" || selectedTable.group_id) &&
+      targetTableObj.status === "ว่าง"
+    ) {
       masterId = selectedTable.table_id;
-    } else {
+      sourceId = targetTableObj.table_id;
+    }
+    
+    else if (
+      selectedTable.status === "ว่าง" &&
+      (targetTableObj.status === "มีลูกค้า" || targetTableObj.group_id)
+    ) {
+      masterId = targetTableObj.table_id;
       sourceId = selectedTable.table_id;
-      masterId = mergeTargetId;
+    }
+
+    else if (selectedTable.status === "มีลูกค้า" && targetTableObj.status === "มีลูกค้า") {
+      masterId = targetTableObj.table_id;
+      sourceId = selectedTable.table_id;
+    }
+
+    else {
+      masterId = targetTableObj.table_id;
+      sourceId = selectedTable.table_id;
     }
 
     try {
       setIsMergeOpen(false);
       await updateTable(sourceId, "mergeTable", { targetTableId: masterId });
-      setTimeout(() => loadData(), 500);
+      setTimeout(() => loadData(), 500); 
     } catch (error) {
-      alert("เกิดข้อผิดพลาด");
+      alert("เกิดข้อผิดพลาดในการรวมโต๊ะ");
       loadData();
     }
   };
@@ -267,7 +288,7 @@ export default function TableStatusDashboard() {
 
               <Card
                 className="flex flex-col border-2 border-dashed border-purple-300 shadow-sm hover:shadow-lg hover:border-purple-500 transition-all cursor-pointer group bg-purple-50/30 dark:bg-purple-900/10 dark:border-purple-800 dark:hover:border-purple-500"
-                onClick={handleOpenTakeoutModal}
+                onClick={handleOpenTakeout}
               >
                 <CardContent className="flex-1 py-8 flex flex-col items-center justify-center text-purple-500 dark:text-purple-400">
                   <div className="bg-purple-100 p-4 rounded-full mb-3 group-hover:scale-110 transition-transform dark:bg-purple-900/30">
@@ -401,10 +422,10 @@ export default function TableStatusDashboard() {
                             </Button>
                           </div>
                           <div className="grid grid-cols-2 gap-2 mt-2">
-                            <Button variant="secondary" size="sm" onClick={() => openMoveModal(table)} className="text-xs h-8 bg-gray-200 hover:bg-gray-300 dark:bg-zinc-800 dark:hover:bg-zinc-700 dark:text-zinc-50">
+                            <Button variant="secondary" size="sm" onClick={() => openMove(table)} className="text-xs h-8 bg-gray-200 hover:bg-gray-300 dark:bg-zinc-800 dark:hover:bg-zinc-700 dark:text-zinc-50">
                               <ArrowRightLeft className="mr-1 h-3 w-3" /> ย้ายโต๊ะ
                             </Button>
-                            <Button variant="secondary" size="sm" onClick={() => openMergeModal(table)} className="text-xs h-8 bg-blue-100 hover:bg-blue-200 text-blue-700 border border-blue-200 dark:bg-blue-900/30 dark:hover:bg-blue-800/50 dark:text-blue-300 dark:border-blue-900/50">
+                            <Button variant="secondary" size="sm" onClick={() => openMerge(table)} className="text-xs h-8 bg-blue-100 hover:bg-blue-200 text-blue-700 border border-blue-200 dark:bg-blue-900/30 dark:hover:bg-blue-800/50 dark:text-blue-300 dark:border-blue-900/50">
                               <LinkIcon className="mr-1 h-3 w-3" /> รวมโต๊ะ
                             </Button>
                           </div>
