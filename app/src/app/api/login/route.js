@@ -1,5 +1,6 @@
 import pool from "@/lib/db";
 import { NextResponse } from "next/server";
+import bcrypt from "bcryptjs";
 
 export async function POST(req) {
   const { email, password } = await req.json();
@@ -20,7 +21,9 @@ export async function POST(req) {
       return NextResponse.json({ message: "บัญชีของคุณถูกระงับหรือไม่ได้ทำงานแล้ว" }, { status: 403 });
     }
 
-    if (password !== user.password) {
+    const isPasswordMatch = await bcrypt.compare(password, user.password);
+
+    if (!isPasswordMatch) {
       return NextResponse.json({ message: "รหัสผ่านไม่ถูกต้อง" }, { status: 401 });
     }
 

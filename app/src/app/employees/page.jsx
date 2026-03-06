@@ -489,33 +489,39 @@ export default function Page() {
                         </div>
                         <div className="space-y-2 flex flex-col">
                           <Label className="dark:text-zinc-400">วัน/เดือน/ปีเกิด</Label>
-                          <Popover>
+                          <Popover modal={true}>
                             <PopoverTrigger asChild>
                               <Button
-                                variant={"outline"}
-                                className={cn(
-                                  "w-full pl-3 text-left font-normal dark:bg-zinc-900 dark:border-zinc-800",
-                                  !birthDate && "text-muted-foreground"
-                                )}
+                                variant="outline"
+                                className={`h-9 justify-start text-left font-normal text-xs w-full dark:bg-zinc-950 dark:border-zinc-800 dark:text-zinc-100 ${!birthDate && "text-muted-foreground"}`}
                               >
-                                {birthDate ? (
-                                  format(birthDate, "dd/MM/yyyy", { locale: th })
-                                ) : (
-                                  <span>เลือกวันที่</span>
-                                )}
-                                <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                                <CalendarIcon className="mr-2 h-3.5 w-3.5 text-zinc-400" />
+                                {birthDate ? format(birthDate, "dd/MM/yyyy", { locale: th }) : <span>เลือกวัน/เดือน/ปีเกิด</span>}
                               </Button>
                             </PopoverTrigger>
-                            <PopoverContent className="w-auto p-0" align="start">
+                            <PopoverContent className="w-auto p-0 rounded-xl shadow-xl border-zinc-200 dark:border-zinc-800" align="start">
                               <Calendar
                                 mode="single"
                                 selected={birthDate}
-                                onSelect={setBirthDate}
-                                disabled={(date) =>
-                                  date > new Date() || date < new Date("1900-01-01")
-                                }
-                                initialFocus
+                                onSelect={(date) => {
+                                  if (date) setBirthDate(date);
+                                }}
+                                disabled={(date) => date > new Date() || date < new Date("1900-01-01")}
+                                defaultMonth={birthDate || new Date()}
                                 locale={th}
+                                className="p-3"
+                                classNames={{
+                                  day_selected: "bg-emerald-500 text-white hover:bg-emerald-600 hover:text-white focus:bg-emerald-600 focus:text-white shadow-lg shadow-emerald-500/30 scale-100",
+                                  day_today: "bg-zinc-100 dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 font-bold border border-zinc-200 dark:border-zinc-700",
+                                  caption_label: "hidden", 
+                                  caption_dropdowns: "flex items-center justify-center gap-2",
+                                  dropdown_month: "relative flex items-center",
+                                  dropdown_year: "relative flex items-center", 
+                                  dropdown: "p-1.5 px-2 bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-md text-sm font-medium cursor-pointer outline-none focus:ring-2 focus:ring-emerald-500 appearance-none", // ตกแต่งปุ่มให้กดง่าย
+                                }}
+                                captionLayout="dropdown"
+                                fromYear={1900}
+                                toYear={new Date().getFullYear()}
                               />
                             </PopoverContent>
                           </Popover>
@@ -564,30 +570,38 @@ export default function Page() {
 
                         <div className="space-y-2 flex flex-col">
                           <Label className="dark:text-zinc-400">วันที่เริ่มงาน</Label>
-                          <Popover>
+                          <Popover modal={true}>
                             <PopoverTrigger asChild>
                               <Button
-                                variant={"outline"}
-                                className={cn(
-                                  "w-full pl-3 text-left font-normal dark:bg-zinc-900 dark:border-zinc-800",
-                                  !startDate && "text-muted-foreground"
-                                )}
+                                variant="outline"
+                                className={`h-9 justify-start text-left font-normal text-xs w-full dark:bg-zinc-950 dark:border-zinc-800 dark:text-zinc-100 ${!startDate && "text-muted-foreground"}`}
                               >
-                                {startDate ? (
-                                  format(startDate, "dd/MM/yyyy", { locale: th })
-                                ) : (
-                                  <span>เลือกวันที่</span>
-                                )}
-                                <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                                <CalendarIcon className="mr-2 h-3.5 w-3.5 text-zinc-400" />
+                                {startDate ? format(startDate, "dd/MM/yyyy", { locale: th }) : <span>เลือกวันที่เริ่มงาน</span>}
                               </Button>
                             </PopoverTrigger>
-                            <PopoverContent className="w-auto p-0" align="start">
+                            <PopoverContent className="w-auto p-0 rounded-xl shadow-xl border-zinc-200 dark:border-zinc-800" align="start">
                               <Calendar
                                 mode="single"
                                 selected={startDate}
-                                onSelect={setStartDate}
-                                initialFocus
+                                onSelect={(date) => {
+                                  if (date) setStartDate(date);
+                                }}
+                                defaultMonth={startDate || new Date()}
                                 locale={th}
+                                className="p-3"
+                                classNames={{
+                                  day_selected: "bg-emerald-500 text-white hover:bg-emerald-600 hover:text-white focus:bg-emerald-600 focus:text-white shadow-lg shadow-emerald-500/30 scale-100",
+                                  day_today: "bg-zinc-100 dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 font-bold border border-zinc-200 dark:border-zinc-700",
+                                  caption_label: "hidden",
+                                  caption_dropdowns: "flex items-center justify-center gap-2",
+                                  dropdown_month: "relative flex items-center",
+                                  dropdown_year: "relative flex items-center",
+                                  dropdown: "p-1.5 px-2 bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-md text-sm font-medium cursor-pointer outline-none focus:ring-2 focus:ring-emerald-500 appearance-none",
+                                }}
+                                captionLayout="dropdown"
+                                fromYear={1990}
+                                toYear={new Date().getFullYear() + 5}
                               />
                             </PopoverContent>
                           </Popover>

@@ -1,12 +1,8 @@
 import { NextResponse } from "next/server";
-import pool from "@/lib/db"; // ✅ ตรวจสอบ path นี้ให้ตรงกับของเดิมของคุณ
+import pool from "@/lib/db"; 
 
-// ฟังก์ชันแปลงเวลาเป็น Local Time (ไทย) สำหรับบันทึกลง MySQL
-// เพื่อแก้ปัญหา Server เป็น UTC แล้วบันทึกเวลาผิด
 const getThaiDate = (dateObj) => {
-    // เพิ่ม 7 ชั่วโมงให้เวลา UTC
     const thaiTime = new Date(dateObj.getTime() + (7 * 60 * 60 * 1000));
-    // ตัดตัว Z ออกแล้วเปลี่ยน T เป็น Space จะได้ format: YYYY-MM-DD HH:mm:ss
     return thaiTime.toISOString().slice(0, 19).replace('T', ' ');
 };
 

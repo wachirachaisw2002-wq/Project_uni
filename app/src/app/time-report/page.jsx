@@ -21,13 +21,11 @@ import { format } from "date-fns";
 import { th } from "date-fns/locale";
 
 export default function TimeReportPage() {
-  const [loading, setLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(true);
   const [records, setRecords] = useState([]);
   const [employees, setEmployees] = useState([]);
-
   const [selectedEmp, setSelectedEmp] = useState("all");
   const [selectedDate, setSelectedDate] = useState(new Date());
-
   const [photoModalOpen, setPhotoModalOpen] = useState(false);
   const [currentPhoto, setCurrentPhoto] = useState(null);
 
@@ -48,7 +46,7 @@ export default function TimeReportPage() {
   }, []);
 
   const fetchReport = useCallback(async () => {
-    setLoading(true);
+    setIsLoading(true);
     try {
       const monthStr = format(selectedDate, "yyyy-MM");
 
@@ -68,7 +66,7 @@ export default function TimeReportPage() {
       console.error("Failed to fetch report:", error);
       setRecords([]);
     } finally {
-      setLoading(false);
+      setIsLoading(false);
     }
   }, [selectedEmp, selectedDate]);
 
@@ -104,11 +102,49 @@ export default function TimeReportPage() {
     window.open(`https://www.google.com/maps/search/?api=1&query=${lat},${lng}`, '_blank');
   };
 
-  const getStatusBadge = (checkoutTime) => {
-    if (checkoutTime) {
-      return "bg-emerald-500/10 text-emerald-500 border-emerald-500/20 dark:bg-emerald-500/5 dark:text-emerald-400 dark:border-emerald-500/20";
+  const getCheckInStatus = (checkInTime) => {
+    if (!checkInTime) return { text: "-", style: "text-gray-400" };
+
+    const date = new Date(checkInTime);
+    const hours = date.getHours();
+    const minutes = date.getMinutes();
+
+    if (hours < 9 || (hours === 9 && minutes <= 30)) {
+      return {
+        text: "เข้างานตรงเวลา",
+        style: "bg-emerald-500/10 text-emerald-500 border-emerald-500/20"
+      };
+    } else {
+      return {
+        text: "เข้างานสาย",
+        style: "bg-red-500/10 text-red-500 border-red-500/20"
+      };
     }
-    return "bg-orange-500/10 text-orange-500 border-orange-500/20 dark:bg-orange-500/5 dark:text-orange-400 dark:border-orange-500/20 animate-pulse";
+  };
+
+  const getCheckOutStatus = (checkOutTime) => {
+    if (!checkOutTime) {
+      return {
+        text: "กำลังทำงาน",
+        style: "bg-orange-500/10 text-orange-500 border-orange-500/20 animate-pulse"
+      };
+    }
+
+    const date = new Date(checkOutTime);
+    const hours = date.getHours();
+    const minutes = date.getMinutes();
+
+    if (hours < 9 || (hours === 9 && minutes < 35)) {
+      return {
+        text: "เลิกงานก่อนเวลา",
+        style: "bg-amber-500/10 text-amber-500 border-amber-500/20"
+      };
+    } else {
+      return {
+        text: "เลิกงานช้า",
+        style: "bg-blue-500/10 text-blue-500 border-blue-500/20"
+      };
+    }
   };
 
   return (
@@ -128,7 +164,7 @@ export default function TimeReportPage() {
 
         <main className="flex-1 overflow-y-auto p-2 sm:p-4 bg-zinc-50/30 dark:bg-black w-full">
 
-          {loading ? (
+          {isLoading ? (
             <div className="flex flex-col items-center justify-center h-[calc(100vh-5rem)] gap-4">
               <Loader2 className="h-10 w-10 animate-spin text-orange-600" />
               <p className="text-sm font-medium animate-pulse text-orange-600">กำลังโหลดรายงาน...</p>
@@ -255,8 +291,17 @@ export default function TimeReportPage() {
                                 </div>
                               </TableCell>
                               <TableCell className="py-2 text-center">
-                                <Badge className={`h-5 text-[9px] px-1.5 ${getStatusBadge(row.check_out)} border shadow-none font-medium`}>
-                                  {row.check_out ? "ครบ" : "ทำงาน"}
+                                <Badge
+                                  className={`h-5 text-[9px] px-1.5 ${getCheckOutStatus(row.check_out).style} border shadow-none font-medium`}
+                                >
+                                  {getCheckOutStatus(row.check_out).text}
+                                </Badge>
+                              </TableCell>
+                              <TableCell className="py-2 text-center">
+                                <Badge
+                                  className={`h-5 text-[9px] px-1.5 ${getCheckInStatus(row.check_in).style} border shadow-none font-medium`}
+                                >
+                                  {getCheckInStatus(row.check_in).text}
                                 </Badge>
                               </TableCell>
                               <TableCell className="py-2 pr-4 text-right">

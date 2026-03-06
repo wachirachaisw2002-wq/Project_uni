@@ -12,23 +12,22 @@ import {
   Loader2, LogIn, LogOut, CalendarDays,
   History, Timer, MapPin, Camera, Clock
 } from "lucide-react";
+import { getDistance } from 'geolib';
 
 const SHOP_LOCATION = {
   lat: 16.4633962,
   lng: 102.8276568
 };
-const ALLOWED_RADIUS_METERS = 50; 
+const Meter = 50;
 
 export default function AttendancePage() {
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(true);
   const [isProcessing, setIsProcessing] = useState(false);
-
   const [currentTime, setCurrentTime] = useState(new Date());
   const [isCheckedIn, setIsCheckedIn] = useState(false);
   const [history, setHistory] = useState([]);
   const [currentSession, setCurrentSession] = useState(null);
-
   const [photo, setPhoto] = useState(null);
 
   useEffect(() => {
@@ -63,6 +62,19 @@ export default function AttendancePage() {
   useEffect(() => {
     fetchAttendance();
   }, [router]);
+
+  const handlePhotoCapture = async (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      try {
+        const resizedImage = await compressImage(file);
+        setPhoto(resizedImage);
+      } catch (error) {
+        console.error("Error compressing image:", error);
+        alert("เกิดข้อผิดพลาดในการประมวลผลรูปภาพ");
+      }
+    }
+  };
 
   const compressImage = (file) => {
     return new Promise((resolve) => {
@@ -101,19 +113,8 @@ export default function AttendancePage() {
     });
   };
 
-  const calculateDistance = (lat1, lon1, lat2, lon2) => {
-    const R = 6371e3;
-    const φ1 = lat1 * Math.PI / 180;
-    const φ2 = lat2 * Math.PI / 180;
-    const Δφ = (lat2 - lat1) * Math.PI / 180;
-    const Δλ = (lon2 - lon1) * Math.PI / 180;
-
-    const a = Math.sin(Δφ / 2) * Math.sin(Δφ / 2) +
-      Math.cos(φ1) * Math.cos(φ2) *
-      Math.sin(Δλ / 2) * Math.sin(Δλ / 2);
-    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-
-    return R * c;
+  const toRadian = (degree) => {
+    return (degree * Math.PI) / 180;
   };
 
   const getCurrentLocation = () => {
@@ -133,26 +134,12 @@ export default function AttendancePage() {
     });
   };
 
-  const handlePhotoCapture = async (e) => {
-    const file = e.target.files[0];
-    if (file) {
-      try {
-        const resizedImage = await compressImage(file);
-        setPhoto(resizedImage);
-      } catch (error) {
-        console.error("Error compressing image:", error);
-        alert("เกิดข้อผิดพลาดในการประมวลผลรูปภาพ");
-      }
-    }
-  };
-
   const handleToggleAttendance = async () => {
     const userId = localStorage.getItem("userId");
     if (!userId) return;
-
     setIsProcessing(true);
-    let locationData = { lat: null, lng: null };
 
+    let locationData = { lat: null, lng: null };
     if (!isCheckedIn) {
       if (!photo) {
         alert("กรุณาถ่ายรูปยืนยันตัวตนก่อนเข้างาน");
@@ -162,9 +149,14 @@ export default function AttendancePage() {
       try {
         const pos = await getCurrentLocation();
         locationData = pos;
-        const distance = calculateDistance(pos.lat, pos.lng, SHOP_LOCATION.lat, SHOP_LOCATION.lng);
-        if (distance > ALLOWED_RADIUS_METERS) {
-          alert(`คุณอยู่นอกพื้นที่ร้าน! (ห่าง ${distance.toFixed(0)} เมตร)\nต้องอยู่ในรัศมี ${ALLOWED_RADIUS_METERS} เมตร จากเดอะพาเลซ`);
+
+        const distance = getDistance(
+          { latitude: pos.lat, longitude: pos.lng },
+          { latitude: SHOP_LOCATION.lat, longitude: SHOP_LOCATION.lng }
+        );
+
+        if (distance > Meter) {
+          alert(`คุณอยู่นอกพื้นที่ร้าน! (ห่าง ${distance.toFixed(0)} เมตร)\nต้องอยู่ในรัศมี ${Meter} เมตร`);
           setIsProcessing(false);
           return;
         }
@@ -189,14 +181,14 @@ export default function AttendancePage() {
           lat: locationData.lat,
           lng: locationData.lng,
           photo: isCheckedIn ? null : photo,
-          timestamp: clientTimestamp 
+          timestamp: clientTimestamp
         }),
       });
 
       if (res.ok) {
         await fetchAttendance();
         if (!isCheckedIn) {
-          alert("เข้างานสำเร็จ! (บันทึกพิกัดและรูปภาพเรียบร้อย)");
+          alert("เข้างานสำเร็จ");
           setPhoto(null);
         }
       } else {
@@ -227,22 +219,22 @@ export default function AttendancePage() {
     if (isNaN(date.getTime())) return "-";
 
     const options = {
-      timeZone: 'Asia/Bangkok', 
+      timeZone: 'Asia/Bangkok',
     };
 
     if (type === 'time') {
-      return date.toLocaleTimeString('th-TH', { 
+      return date.toLocaleTimeString('th-TH', {
         ...options,
-        hour: '2-digit', 
+        hour: '2-digit',
         minute: '2-digit',
-        hour12: false 
+        hour12: false
       });
     }
-    return date.toLocaleDateString('th-TH', { 
+    return date.toLocaleDateString('th-TH', {
       ...options,
-      day: 'numeric', 
-      month: 'short', 
-      year: '2-digit' 
+      day: 'numeric',
+      month: 'short',
+      year: '2-digit'
     });
   };
 

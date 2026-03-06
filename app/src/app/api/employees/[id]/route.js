@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import pool from "@/lib/db";
+import bcrypt from "bcryptjs"; // 🟢 1. Import bcryptjs
 
 export async function GET(request, { params }) {
   try {
@@ -16,7 +17,7 @@ export async function GET(request, { params }) {
 
     const employee = rows[0];
 
-    delete employee.password; 
+    delete employee.password;
 
     return NextResponse.json(employee);
   } catch (error) {
@@ -25,17 +26,15 @@ export async function GET(request, { params }) {
   }
 }
 
-
 export async function PUT(request, { params }) {
   try {
     const { id } = await params;
-
     const body = await request.json();
 
     const {
       name_th, name_en, nickname, birth_date, address, phone, line_id,
-      email, password, position, employment_type, start_date, 
-      shift_availability, status, salary, id_card_number 
+      email, password, position, employment_type, start_date,
+      shift_availability, status, salary, id_card_number
     } = body;
 
     let sql = `
@@ -47,13 +46,17 @@ export async function PUT(request, { params }) {
 
     let values = [
       name_th, name_en, nickname, birth_date, address, phone, line_id,
-      email, position, employment_type, start_date, shift_availability, 
+      email, position, employment_type, start_date, shift_availability,
       status, salary, id_card_number
     ];
 
+    // 🟢 2. ทำการ Hash รหัสผ่านใหม่เฉพาะเมื่อมีการส่งรหัสผ่านเข้ามา
     if (password && password.trim() !== "") {
+      const salt = await bcrypt.genSalt(10);
+      const hashedPassword = await bcrypt.hash(password, salt);
+
       sql += `, password=?`;
-      values.push(password);
+      values.push(hashedPassword); // 🟢 3. push รหัสผ่านที่ Hash แล้วลงไป
     }
 
     sql += ` WHERE employee_id = ?`;
