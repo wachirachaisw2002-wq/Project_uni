@@ -14,8 +14,72 @@ import {
   MessageSquare,
   Receipt,
   ImagePlus,
-  QrCode
+  QrCode,
+  CheckCircle2,
+  Printer
 } from "lucide-react";
+import { format } from "date-fns";
+
+const handlePrintReceipt = (billData, itemsData) => {
+  if (!billData || !itemsData) return;
+  const storeName = "ร้านตำลืมผัว";
+  const receiptHtml = `
+    <html>
+      <head>
+        <title>ใบเสร็จรับเงิน ${billData.bill_id ? '#' + billData.bill_id : ''}</title>
+        <style>
+          @page { margin: 0; size: auto; }
+          body { font-family: sans-serif; width: 300px; margin: 0 auto; padding: 20px 10px; font-size: 13px; color: #000; }
+          .text-center { text-align: center; } .text-right { text-align: right; } .text-left { text-align: left; }
+          .font-bold { font-weight: bold; } .text-xl { font-size: 22px; } .text-lg { font-size: 18px; } .text-sm { font-size: 11px; }
+          .divider { border-top: 1px dashed #000; margin: 10px 0; }
+          table { width: 100%; border-collapse: collapse; margin: 10px 0; } th, td { padding: 4px 0; vertical-align: top; }
+          th { border-bottom: 1px solid #000; } .flex { display: flex; justify-content: space-between; }
+          .mb-1 { margin-bottom: 4px; } .mb-2 { margin-bottom: 8px; } .mt-2 { margin-top: 8px; } .mt-4 { margin-top: 16px; }
+          .watermark { text-align: center; font-size: 10px; margin-top: 20px; color: #666; }
+          @media print { .no-print { display: none !important; } }
+          .action-buttons { text-align: center; margin-top: 30px; padding-top: 15px; border-top: 1px dashed #ccc; display: flex; gap: 10px; justify-content: center; }
+          .btn-print { flex: 1; background: #10b981; color: #fff; border: none; padding: 10px; border-radius: 8px; font-size: 14px; cursor: pointer; font-weight: bold; }
+          .btn-print:hover { background: #059669; }
+          .btn-close { flex: 1; background: #f4f4f5; color: #3f3f46; border: 1px solid #e4e4e7; padding: 10px; border-radius: 8px; font-size: 14px; cursor: pointer; font-weight: bold; }
+          .btn-close:hover { background: #e4e4e7; }
+        </style>
+      </head>
+      <body>
+        <div class="text-center font-bold text-xl mb-1">${storeName}</div>
+        <div class="text-center mb-2">ใบเสร็จรับเงิน / ใบกำกับภาษีอย่างย่อ</div>
+        
+        ${billData.bill_id ? `<div class="flex mb-1"><span>เลขที่บิล:</span> <span>#${billData.bill_id}</span></div>` : ''}
+        <div class="flex mb-1"><span>วันที่:</span> <span>${format(new Date(), "dd/MM/yyyy HH:mm")}</span></div>
+        <div class="flex mb-1"><span>พนักงาน:</span> <span>${billData.cashierName}</span></div>
+        <div class="flex mb-1"><span>ลูกค้า/โต๊ะ:</span> <span class="font-bold">${billData.table_id ? 'โต๊ะ ' + billData.table_id : billData.customer_name || 'สั่งกลับบ้าน'}</span></div>
+        <div class="divider"></div>
+        <table>
+          <thead><tr><th class="text-left" style="width: 50%;">รายการ</th><th class="text-center" style="width: 20%;">จำนวน</th><th class="text-right" style="width: 30%;">ราคา</th></tr></thead>
+          <tbody>
+            ${itemsData.map(i => `<tr><td class="text-left">${i.name_th || i.name}</td><td class="text-center">${i.qty || i.quantity}</td><td class="text-right">${((Number(i.qty) || Number(i.quantity) || 0) * Number(i.price)).toLocaleString()}</td></tr>`).join('')}
+          </tbody>
+        </table>
+        <div class="divider"></div>
+        <div class="flex font-bold text-lg mt-2"><span>ยอดรวมทั้งสิ้น</span><span>${Number(billData.totalPrice).toLocaleString()} บาท</span></div>
+        <div class="flex mt-1 text-sm"><span>ชำระโดย:</span><span>${billData.paymentType}</span></div>
+        <div class="flex mt-1 text-sm"><span>รับเงินมา:</span><span>${Number(billData.cashReceived).toLocaleString()} บาท</span></div>
+        <div class="flex mt-1 text-sm"><span>เงินทอน:</span><span>${Number(billData.changeAmount).toLocaleString()} บาท</span></div>
+        <div class="divider"></div>
+        <div class="text-center mt-4 font-bold">ขอบคุณที่ใช้บริการ</div>
+        <div class="text-center text-sm">โอกาสหน้าเชิญใหม่ครับ/ค่ะ</div>
+        
+        <div class="action-buttons no-print">
+          <button class="btn-print" onclick="window.print()">สั่งพิมพ์ใบเสร็จ</button>
+          <button class="btn-close" onclick="window.close()">ปิดหน้าต่าง</button>
+        </div>
+      </body>
+    </html>`;
+
+  const printWindow = window.open('', '_blank', 'width=400,height=600');
+  if (printWindow) { printWindow.document.write(receiptHtml); printWindow.document.close(); }
+  else { alert("กรุณาอนุญาต Pop-ups สำหรับเว็บไซต์นี้เพื่อพิมพ์ใบเสร็จ"); }
+};
 
 export default function PaymentPage() {
   const searchParams = useSearchParams();
@@ -26,6 +90,7 @@ export default function PaymentPage() {
   const amountParam = searchParams.get("amount") || "0";
   const relatedTablesRaw = searchParams.get("related") || "";
   const remarkParam = searchParams.get("remark") || "";
+  const customerNameParam = searchParams.get("customerName") || "";
 
   const tableId = useMemo(() => {
     const n = Number(tableParam);
@@ -45,6 +110,10 @@ export default function PaymentPage() {
   const [currentEmployee, setCurrentEmployee] = useState(null);
   const [receiptImage, setReceiptImage] = useState(null);
   const [slipFile, setSlipFile] = useState(null);
+
+  const [isSuccess, setIsSuccess] = useState(false);
+  const [paymentSuccessData, setPaymentSuccessData] = useState(null);
+  const [billItems, setBillItems] = useState([]);
 
   useEffect(() => {
     const fetchMe = async () => {
@@ -165,7 +234,7 @@ export default function PaymentPage() {
     try {
       setLoading(true);
       const items = await buildBillItemsFromOrders(tableId);
-      await createBillRecord(items);
+      const res = await createBillRecord(items);
 
       await fetch(`/api/tables/${tableId}`, {
         method: "PUT",
@@ -183,7 +252,19 @@ export default function PaymentPage() {
         ));
       }
 
-      router.push("/table");
+      setBillItems(items);
+      setPaymentSuccessData({
+        bill_id: res.bill_id || res.id || "",
+        table_id: tableId,
+        customer_name: customerNameParam,
+        cashierName: currentEmployee?.name,
+        totalPrice: amount,
+        paymentType: "เงินโอน",
+        cashReceived: amount,
+        changeAmount: 0,
+      });
+      setIsSuccess(true);
+
     } catch (err) {
       alert(err.message);
     } finally {
@@ -191,11 +272,37 @@ export default function PaymentPage() {
     }
   };
 
-  const BRAND_COLOR = "#FF5722"; 
+  const BRAND_COLOR = "#FF5722";
+
+  if (isSuccess) {
+    return (
+      <div className="min-h-screen bg-[#F8FAFC] flex flex-col items-center py-10 px-4 dark:bg-black">
+        <Card className="w-full max-w-md border-0 shadow-xl shadow-slate-200/60 rounded-3xl overflow-hidden bg-white dark:bg-zinc-900 dark:shadow-none p-8 text-center space-y-6">
+          <div className="flex flex-col items-center justify-center p-6 bg-green-50 rounded-3xl border border-green-100 dark:bg-green-900/20 dark:border-green-900/30">
+            <CheckCircle2 className="w-16 h-16 text-green-500 mb-4" />
+            <h3 className="text-2xl font-black text-green-600 dark:text-green-400">ชำระเงินสำเร็จ</h3>
+            <p className="text-zinc-500 mt-2 font-medium">ทำรายการบันทึกสลิปและโอนเงินเรียบร้อยแล้ว</p>
+          </div>
+
+          <div className="flex flex-col sm:flex-row gap-3 mt-6">
+            <Button variant="outline" className="flex-1 h-14 rounded-2xl font-bold border-zinc-200 dark:border-zinc-800" onClick={() => router.push("/table")}>
+              กลับหน้าหลัก
+            </Button>
+            <Button
+              className="flex-1 h-14 text-white font-bold rounded-2xl shadow-lg"
+              style={{ backgroundColor: BRAND_COLOR }}
+              onClick={() => handlePrintReceipt(paymentSuccessData, billItems)}
+            >
+              <Printer className="w-5 h-5 mr-2" /> พิมพ์ใบเสร็จ
+            </Button>
+          </div>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-[#F8FAFC] flex flex-col items-center py-6 px-4 dark:bg-black">
-
       <div className="w-full max-w-md flex items-center justify-between mb-6">
         <Button variant="ghost" size="icon" onClick={() => router.back()} className="rounded-full hover:bg-white hover:shadow-sm">
           <ArrowLeft className="h-5 w-5 text-slate-600 dark:text-zinc-300" />
@@ -205,7 +312,6 @@ export default function PaymentPage() {
       </div>
 
       <Card className="w-full max-w-md border-0 shadow-xl shadow-slate-200/60 rounded-3xl overflow-hidden bg-white dark:bg-zinc-900 dark:shadow-none">
-
         <div className="relative bg-gradient-to-b from-[#FF5722]/10 to-white pt-8 pb-4 px-6 text-center dark:from-[#FF5722]/20 dark:to-zinc-900">
           <div className="inline-flex items-center gap-2 px-4 py-1.5 bg-white border border-[#FF5722]/20 rounded-full shadow-sm mb-4 dark:bg-zinc-800 dark:border-zinc-700">
             <Receipt className="w-4 h-4" style={{ color: BRAND_COLOR }} />
@@ -231,7 +337,6 @@ export default function PaymentPage() {
         </div>
 
         <CardContent className="px-6 pb-6 space-y-6">
-
           <div className="bg-white rounded-2xl border border-slate-100 p-4 shadow-sm flex flex-col items-center gap-3 dark:bg-zinc-800/50 dark:border-zinc-700">
             <div className="flex items-center gap-2 text-sm font-medium text-slate-600 dark:text-zinc-300 w-full px-2">
               <QrCode className="w-4 h-4" style={{ color: BRAND_COLOR }} />
@@ -282,7 +387,6 @@ export default function PaymentPage() {
                 <div className="w-10 h-10 rounded-full bg-white flex items-center justify-center shadow-sm mb-2 group-hover:scale-110 transition-transform dark:bg-zinc-700">
                   <UploadCloud className="w-5 h-5" style={{ color: BRAND_COLOR }} />
                 </div>
-                {/* Text เปลี่ยนสีเมื่อ Hover */}
                 <p className="text-xs text-slate-500 font-medium group-hover:text-[#FF5722] dark:text-zinc-400 transition-colors">
                   แตะเพื่อแนบสลิป
                 </p>
@@ -313,7 +417,6 @@ export default function PaymentPage() {
           )}
         </CardFooter>
       </Card>
-
     </div>
   );
 }

@@ -12,20 +12,10 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import {
-  AlertCircle,
-  ArrowLeft,
-  Banknote,
-  CreditCard,
-  Receipt,
-  Pencil,
-  Minus,
-  Plus,
-  Save,
-  Link as LinkIcon,
-  CheckCircle2,
-  User,
-  XCircle
+  AlertCircle, ArrowLeft, Banknote, CreditCard, Receipt, Pencil,
+  Minus, Plus, Save, Link as LinkIcon, CheckCircle2, User, XCircle, Printer
 } from "lucide-react";
+import { format } from "date-fns";
 
 const adjustOrderQty = async (tableId, menuId, adjustQty, orderId = null) => {
   const body = {
@@ -140,6 +130,68 @@ const createBill = async (billData) => {
   return res.json();
 };
 
+// --- เพิ่มฟังก์ชันพิมพ์ใบเสร็จ ---
+const handlePrintReceipt = (billData, itemsData) => {
+  if (!billData || !itemsData) return;
+  const storeName = "ร้านตำลืมผัว";
+  const receiptHtml = `
+    <html>
+      <head>
+        <title>ใบเสร็จรับเงิน ${billData.bill_id ? '#' + billData.bill_id : ''}</title>
+        <style>
+          @page { margin: 0; size: auto; }
+          body { font-family: sans-serif; width: 300px; margin: 0 auto; padding: 20px 10px; font-size: 13px; color: #000; }
+          .text-center { text-align: center; } .text-right { text-align: right; } .text-left { text-align: left; }
+          .font-bold { font-weight: bold; } .text-xl { font-size: 22px; } .text-lg { font-size: 18px; } .text-sm { font-size: 11px; }
+          .divider { border-top: 1px dashed #000; margin: 10px 0; }
+          table { width: 100%; border-collapse: collapse; margin: 10px 0; } th, td { padding: 4px 0; vertical-align: top; }
+          th { border-bottom: 1px solid #000; } .flex { display: flex; justify-content: space-between; }
+          .mb-1 { margin-bottom: 4px; } .mb-2 { margin-bottom: 8px; } .mt-2 { margin-top: 8px; } .mt-4 { margin-top: 16px; }
+          .watermark { text-align: center; font-size: 10px; margin-top: 20px; color: #666; }
+          @media print { .no-print { display: none !important; } }
+          .action-buttons { text-align: center; margin-top: 30px; padding-top: 15px; border-top: 1px dashed #ccc; display: flex; gap: 10px; justify-content: center; }
+          .btn-print { flex: 1; background: #10b981; color: #fff; border: none; padding: 10px; border-radius: 8px; font-size: 14px; cursor: pointer; font-weight: bold; }
+          .btn-print:hover { background: #059669; }
+          .btn-close { flex: 1; background: #f4f4f5; color: #3f3f46; border: 1px solid #e4e4e7; padding: 10px; border-radius: 8px; font-size: 14px; cursor: pointer; font-weight: bold; }
+          .btn-close:hover { background: #e4e4e7; }
+        </style>
+      </head>
+      <body>
+        <div class="text-center font-bold text-xl mb-1">${storeName}</div>
+        <div class="text-center mb-2">ใบเสร็จรับเงิน / ใบกำกับภาษีอย่างย่อ</div>
+        
+        ${billData.bill_id ? `<div class="flex mb-1"><span>เลขที่บิล:</span> <span>#${billData.bill_id}</span></div>` : ''}
+        <div class="flex mb-1"><span>วันที่:</span> <span>${format(new Date(), "dd/MM/yyyy HH:mm")}</span></div>
+        <div class="flex mb-1"><span>พนักงาน:</span> <span>${billData.cashierName}</span></div>
+        <div class="flex mb-1"><span>ลูกค้า/โต๊ะ:</span> <span class="font-bold">${billData.table_id ? 'โต๊ะ ' + billData.table_id : billData.customer_name || 'สั่งกลับบ้าน'}</span></div>
+        <div class="divider"></div>
+        <table>
+          <thead><tr><th class="text-left" style="width: 50%;">รายการ</th><th class="text-center" style="width: 20%;">จำนวน</th><th class="text-right" style="width: 30%;">ราคา</th></tr></thead>
+          <tbody>
+            ${itemsData.map(i => `<tr><td class="text-left">${i.name_th || i.name}</td><td class="text-center">${i.qty || i.quantity}</td><td class="text-right">${((Number(i.qty) || Number(i.quantity) || 0) * Number(i.price)).toLocaleString()}</td></tr>`).join('')}
+          </tbody>
+        </table>
+        <div class="divider"></div>
+        <div class="flex font-bold text-lg mt-2"><span>ยอดรวมทั้งสิ้น</span><span>${Number(billData.totalPrice).toLocaleString()} บาท</span></div>
+        <div class="flex mt-1 text-sm"><span>ชำระโดย:</span><span>${billData.paymentType}</span></div>
+        <div class="flex mt-1 text-sm"><span>รับเงินมา:</span><span>${Number(billData.cashReceived).toLocaleString()} บาท</span></div>
+        <div class="flex mt-1 text-sm"><span>เงินทอน:</span><span>${Number(billData.changeAmount).toLocaleString()} บาท</span></div>
+        <div class="divider"></div>
+        <div class="text-center mt-4 font-bold">ขอบคุณที่ใช้บริการ</div>
+        <div class="text-center text-sm">โอกาสหน้าเชิญใหม่ครับ/ค่ะ</div>
+        
+        <div class="action-buttons no-print">
+          <button class="btn-print" onclick="window.print()">สั่งพิมพ์ใบเสร็จ</button>
+          <button class="btn-close" onclick="window.close()">ปิดหน้าต่าง</button>
+        </div>
+      </body>
+    </html>`;
+
+  const printWindow = window.open('', '_blank', 'width=400,height=600');
+  if (printWindow) { printWindow.document.write(receiptHtml); printWindow.document.close(); }
+  else { alert("กรุณาอนุญาต Pop-ups สำหรับเว็บไซต์นี้เพื่อพิมพ์ใบเสร็จ"); }
+};
+
 function BillingContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -165,13 +217,16 @@ function BillingContent() {
 
   const [isEditing, setIsEditing] = useState(false);
   const [adjustingId, setAdjustingId] = useState(null);
+
+  // State สำหรับจัดการหน้าต่างชำระเงิน
   const [paymentStep, setPaymentStep] = useState('select');
   const [cashReceived, setCashReceived] = useState("");
   const [changeAmount, setChangeAmount] = useState(0);
+  const [paymentSuccessData, setPaymentSuccessData] = useState(null);
 
   useEffect(() => {
     if (!tableId && type !== 'takeout') {
-      router.replace("/table-status-dashboard");
+      router.replace("/table");
     }
   }, [tableId, type, router]);
 
@@ -219,6 +274,14 @@ function BillingContent() {
     setChangeAmount(received - totalPrice);
   }, [cashReceived, totalPrice]);
 
+  const handleBack = () => {
+    if (tableId && type !== 'takeout') {
+      router.push(`/table?revert_table_id=${tableId}`);
+    } else {
+      router.back();
+    }
+  };
+
   const handleAdjustQtyAction = async (item, amount) => {
     if (item.isCancelled) return;
     if (adjustingId) return;
@@ -248,7 +311,7 @@ function BillingContent() {
   const onConfirmPaymentCash = async () => {
     setLoading(true);
     try {
-      await createBill({
+      const res = await createBill({
         tableId,
         orderType: type === 'takeout' ? 'TAKEAWAY' : 'DINE_IN',
         customerName: customerName,
@@ -267,7 +330,20 @@ function BillingContent() {
           await Promise.all(relatedTables.map(tNum => updateTable(tNum, "changeStatus", "ว่าง", "เงินสด")));
         }
       }
-      router.push("/table");
+
+      // เก็บบิลดาต้าสำหรับพิมพ์และเปลี่ยนไปหน้าแสดงความสำเร็จ
+      setPaymentSuccessData({
+        bill_id: res.bill_id || res.id || "",
+        table_id: tableId,
+        customer_name: customerName,
+        cashierName: currentEmployee?.name,
+        totalPrice,
+        paymentType: "เงินสด",
+        cashReceived,
+        changeAmount
+      });
+      setPaymentStep('success');
+
     } catch (e) {
       console.error(e);
       alert("เกิดข้อผิดพลาดในการบันทึกบิล");
@@ -299,18 +375,20 @@ function BillingContent() {
                 {type === 'takeout' ? (
                   <span className="text-purple-600 flex items-center gap-1"><User className="w-4 h-4" /> {customerName}</span>
                 ) : (
-                  <span>โต๊ะ {tableId}</span>
+                  <span>โต๊ะ {tableInfo?.number || tableId}</span>
                 )}
               </h1>
               {tableInfo?.group_id && (
                 <Badge variant="outline" className="text-[10px] bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-900/20 dark:text-blue-400">
                   <LinkIcon className="w-2.5 h-2.5 mr-1" />
-                  รวมโต๊ะ: {[tableId, ...relatedTables].sort((a, b) => Number(a) - Number(b)).join(", ")}
+                  รวมโต๊ะ: {[tableInfo.number, ...relatedTables].sort((a, b) => Number(a) - Number(b)).join(", ")}
                 </Badge>
               )}
             </div>
           </div>
-          <Button variant="ghost" size="sm" onClick={() => router.back()}><ArrowLeft className="mr-2 h-4 w-4" /> กลับ</Button>
+          <Button variant="ghost" size="sm" onClick={handleBack}>
+            <ArrowLeft className="mr-2 h-4 w-4" /> กลับ
+          </Button>
         </header>
 
         <main className="p-6 flex justify-center">
@@ -419,13 +497,23 @@ function BillingContent() {
         </main>
 
         <Dialog open={paymentDialogOpen} onOpenChange={(open) => {
-          if (!open) { setPaymentStep('select'); setCashReceived(""); }
+          if (!open) {
+            // ถ้ายกเลิกปิด Modal ตอนจ่ายสำเร็จแล้ว ให้เด้งกลับหน้า Table
+            if (paymentStep === 'success') {
+              router.push('/table');
+            } else {
+              setPaymentStep('select');
+              setCashReceived("");
+            }
+          }
           setPaymentDialogOpen(open);
         }}>
           <DialogContent className="sm:max-w-md rounded-[2rem] p-6 gap-0 overflow-hidden border-none shadow-2xl dark:bg-zinc-900">
-            <DialogHeader className="pb-4">
-              <DialogTitle className="text-center text-xl font-bold dark:text-zinc-100">ช่องทางชำระเงิน</DialogTitle>
-            </DialogHeader>
+            {paymentStep !== 'success' && (
+              <DialogHeader className="pb-4">
+                <DialogTitle className="text-center text-xl font-bold dark:text-zinc-100">ช่องทางชำระเงิน</DialogTitle>
+              </DialogHeader>
+            )}
 
             {paymentStep === 'select' ? (
               <div className="space-y-4 pt-2">
@@ -440,7 +528,7 @@ function BillingContent() {
                   </button>
                 </div>
               </div>
-            ) : (
+            ) : paymentStep === 'cash_input' ? (
               <div className="space-y-6 pt-2">
                 <div className="text-center p-4 bg-zinc-50 dark:bg-zinc-950 rounded-2xl border border-dashed border-zinc-200 dark:border-zinc-800">
                   <p className="text-xs text-zinc-500 dark:text-zinc-400 font-bold uppercase tracking-wider mb-1">ยอดที่ต้องชำระ</p>
@@ -480,6 +568,22 @@ function BillingContent() {
                     onClick={onConfirmPaymentCash}
                   >
                     {loading ? "กำลังบันทึก..." : "ยืนยันการชำระ"}
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-6 pt-2 text-center">
+                <div className="flex flex-col items-center justify-center p-6 bg-green-50 rounded-3xl border border-green-100 dark:bg-green-900/20 dark:border-green-900/30">
+                  <CheckCircle2 className="w-16 h-16 text-green-500 mb-3" />
+                  <h3 className="text-2xl font-black text-green-600 dark:text-green-400">ชำระเงินสำเร็จ</h3>
+                  <p className="text-zinc-500 mt-2">เงินทอน: <span className="font-bold text-lg text-zinc-800 dark:text-zinc-200">{Number(paymentSuccessData?.changeAmount || 0).toLocaleString()} ฿</span></p>
+                </div>
+                <div className="flex flex-col sm:flex-row gap-3 mt-4">
+                  <Button variant="outline" className="flex-1 h-14 rounded-2xl font-bold border-zinc-200 dark:border-zinc-800" onClick={() => router.push("/table")}>
+                    กลับหน้าหลัก
+                  </Button>
+                  <Button className="flex-1 h-14 bg-emerald-500 hover:bg-emerald-600 text-white font-bold rounded-2xl shadow-lg" onClick={() => handlePrintReceipt(paymentSuccessData, orders)}>
+                    <Printer className="w-5 h-5 mr-2" /> พิมพ์ใบเสร็จ
                   </Button>
                 </div>
               </div>

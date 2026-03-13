@@ -25,6 +25,8 @@ export async function GET() {
 
     if (columns.includes('status')) fields.push("b.status");
     if (columns.includes('void_reason')) fields.push("b.void_reason");
+    
+    if (columns.includes('slip_url')) fields.push("b.slip_url");
 
     fields.push("(SELECT customer_name FROM orders WHERE bill_id = b.bill_id LIMIT 1) AS customer_name");
 
@@ -84,6 +86,7 @@ export async function PATCH(req) {
           SELECT 
             table_id, 
             remark,
+            slip_url,
             (SELECT customer_name FROM orders WHERE bill_id = bills.bill_id LIMIT 1) AS customer_name
           FROM bills 
           WHERE bill_id = ?
@@ -97,11 +100,13 @@ export async function PATCH(req) {
         );
 
         const cashReceived = payment_type === 'เงินสด' ? total_price : 0;
+        
+        const oldSlipUrl = oldBill[0].slip_url || null;
 
         const [insertRes] = await connection.query(
-          `INSERT INTO bills (table_id, remark, total_price, payment_type, status, created_at, closed_by_id, cash_received, change_amount) 
-            VALUES (?, ?, ?, ?, 'COMPLETED', NOW(), ?, ?, 0)`,
-          [oldBill[0].table_id, oldBill[0].remark, total_price, payment_type, user_id, cashReceived]
+          `INSERT INTO bills (table_id, remark, total_price, payment_type, status, created_at, closed_by_id, cash_received, change_amount, slip_url) 
+            VALUES (?, ?, ?, ?, 'COMPLETED', NOW(), ?, ?, 0, ?)`,
+          [oldBill[0].table_id, oldBill[0].remark, total_price, payment_type, user_id, cashReceived, oldSlipUrl]
         );
         const newId = insertRes.insertId;
 

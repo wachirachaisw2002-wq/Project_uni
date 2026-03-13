@@ -12,7 +12,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import {
   Loader2, CalendarIcon, MapPin,
-  Image as ImageIcon, AlertCircle
+  Image as ImageIcon, AlertCircle, ChevronLeft, ChevronRight
 } from "lucide-react";
 
 import { Calendar } from "@/components/ui/calendar";
@@ -28,6 +28,9 @@ export default function TimeReportPage() {
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [photoModalOpen, setPhotoModalOpen] = useState(false);
   const [currentPhoto, setCurrentPhoto] = useState(null);
+
+  const [currentPage, setCurrentPage] = useState(1);
+  const ITEMS_PER_PAGE = 6; 
 
   useEffect(() => {
     const fetchEmployees = async () => {
@@ -59,6 +62,7 @@ export default function TimeReportPage() {
       if (res.ok) {
         const data = await res.json();
         setRecords(data);
+        setCurrentPage(1); 
       } else {
         setRecords([]);
       }
@@ -125,7 +129,7 @@ export default function TimeReportPage() {
   const getCheckOutStatus = (checkOutTime) => {
     if (!checkOutTime) {
       return {
-        text: "กำลังทำงาน",
+        text: "กำลังทำงาน...",
         style: "bg-orange-500/10 text-orange-500 border-orange-500/20 animate-pulse"
       };
     }
@@ -146,6 +150,11 @@ export default function TimeReportPage() {
       };
     }
   };
+
+  const indexOfLastRecord = currentPage * ITEMS_PER_PAGE;
+  const indexOfFirstRecord = indexOfLastRecord - ITEMS_PER_PAGE;
+  const currentRecords = records.slice(indexOfFirstRecord, indexOfLastRecord);
+  const totalPages = Math.ceil(records.length / ITEMS_PER_PAGE);
 
   return (
     <SidebarProvider>
@@ -170,7 +179,7 @@ export default function TimeReportPage() {
               <p className="text-sm font-medium animate-pulse text-orange-600">กำลังโหลดรายงาน...</p>
             </div>
           ) : (
-            <div className="max-w-3xl mx-auto space-y-4">
+            <div className="max-w-4xl mx-auto space-y-4">
 
               <Card className="border-none shadow-sm dark:bg-zinc-900/40 dark:ring-1 dark:ring-zinc-800">
                 <CardContent className="p-3 space-y-3">
@@ -230,17 +239,17 @@ export default function TimeReportPage() {
                 </CardContent>
               </Card>
 
-              <Card className="border-none shadow-sm overflow-hidden dark:bg-zinc-900/40 dark:ring-1 dark:ring-zinc-800">
-                <CardContent className="p-0">
+              <Card className="border-none shadow-sm overflow-hidden dark:bg-zinc-900/40 dark:ring-1 dark:ring-zinc-800 flex flex-col">
+                <CardContent className="p-0 flex-1">
                   <div className="overflow-x-auto w-full">
-                    <Table className="min-w-[600px]">
+                    <Table className="min-w-[700px]">
                       <TableHeader className="bg-zinc-50/50 dark:bg-zinc-950/50">
                         <TableRow className="dark:border-zinc-800">
                           <TableHead className="pl-4 h-10 text-xs dark:text-zinc-400">พนักงาน</TableHead>
                           <TableHead className="h-10 text-xs dark:text-zinc-400">วันที่</TableHead>
-                          <TableHead className="h-10 text-xs dark:text-zinc-400">เวลา</TableHead>
-                          <TableHead className="h-10 text-xs dark:text-zinc-400 text-center">รวม</TableHead>
-                          <TableHead className="h-10 text-xs dark:text-zinc-400 text-center">สถานะ</TableHead>
+                          <TableHead className="h-10 text-xs dark:text-zinc-400">เวลาเข้างาน</TableHead>
+                          <TableHead className="h-10 text-xs dark:text-zinc-400">เวลาออกงาน</TableHead>
+                          <TableHead className="h-10 text-xs dark:text-zinc-400 text-center">รวมเวลา</TableHead>
                           <TableHead className="pr-4 h-10 text-xs text-right dark:text-zinc-400">หลักฐาน</TableHead>
                         </TableRow>
                       </TableHeader>
@@ -255,8 +264,9 @@ export default function TimeReportPage() {
                             </TableCell>
                           </TableRow>
                         ) : (
-                          records.map((row) => (
+                          currentRecords.map((row) => (
                             <TableRow key={row.id} className="dark:border-zinc-800 dark:hover:bg-zinc-800/40 transition-colors group">
+
                               <TableCell className="pl-4 py-2">
                                 <div className="flex items-center gap-2">
                                   <Avatar className="h-7 w-7 border border-zinc-100 dark:border-zinc-700">
@@ -270,40 +280,39 @@ export default function TimeReportPage() {
                                   </div>
                                 </div>
                               </TableCell>
+
                               <TableCell className="py-2 text-xs text-zinc-600 dark:text-zinc-400">
                                 {formatDate(row.work_date)}
                               </TableCell>
+
                               <TableCell className="py-2">
-                                <div className="flex flex-col gap-1">
-                                  <Badge variant="secondary" className="w-fit h-5 px-1.5 text-[10px] bg-emerald-50 text-emerald-700 border-emerald-100 dark:bg-emerald-900/20 dark:text-emerald-400 dark:border-emerald-800">
-                                    เข้า {formatTime(row.check_in)}
+                                <div className="flex flex-col items-start gap-1">
+                                  <span className="text-xs font-medium text-zinc-900 dark:text-zinc-100">
+                                    {formatTime(row.check_in)}
+                                  </span>
+                                  <Badge className={`h-5 text-[9px] px-1.5 ${getCheckInStatus(row.check_in).style} border shadow-none font-medium`}>
+                                    {getCheckInStatus(row.check_in).text}
                                   </Badge>
-                                  {row.check_out && (
-                                    <Badge variant="secondary" className="w-fit h-5 px-1.5 text-[10px] bg-zinc-100 text-zinc-700 border-zinc-200 dark:bg-zinc-800 dark:text-zinc-300 dark:border-zinc-700">
-                                      ออก {formatTime(row.check_out)}
-                                    </Badge>
-                                  )}
                                 </div>
                               </TableCell>
+
+                              <TableCell className="py-2">
+                                <div className="flex flex-col items-start gap-1">
+                                  <span className="text-xs font-medium text-zinc-900 dark:text-zinc-100">
+                                    {row.check_out ? formatTime(row.check_out) : "-"}
+                                  </span>
+                                  <Badge className={`h-5 text-[9px] px-1.5 ${getCheckOutStatus(row.check_out).style} border shadow-none font-medium`}>
+                                    {getCheckOutStatus(row.check_out).text}
+                                  </Badge>
+                                </div>
+                              </TableCell>
+
                               <TableCell className="py-2 text-center">
                                 <div className="text-[10px] text-zinc-600 dark:text-zinc-400">
                                   {calculateDuration(row.check_in, row.check_out)}
                                 </div>
                               </TableCell>
-                              <TableCell className="py-2 text-center">
-                                <Badge
-                                  className={`h-5 text-[9px] px-1.5 ${getCheckOutStatus(row.check_out).style} border shadow-none font-medium`}
-                                >
-                                  {getCheckOutStatus(row.check_out).text}
-                                </Badge>
-                              </TableCell>
-                              <TableCell className="py-2 text-center">
-                                <Badge
-                                  className={`h-5 text-[9px] px-1.5 ${getCheckInStatus(row.check_in).style} border shadow-none font-medium`}
-                                >
-                                  {getCheckInStatus(row.check_in).text}
-                                </Badge>
-                              </TableCell>
+
                               <TableCell className="py-2 pr-4 text-right">
                                 <div className="flex justify-end gap-1">
                                   {row.latitude && row.longitude && (
@@ -333,6 +342,7 @@ export default function TimeReportPage() {
                                   )}
                                 </div>
                               </TableCell>
+
                             </TableRow>
                           ))
                         )}
@@ -340,6 +350,39 @@ export default function TimeReportPage() {
                     </Table>
                   </div>
                 </CardContent>
+
+                {records.length > 0 && (
+                  <div className="flex items-center justify-between px-4 py-3 border-t border-zinc-100 dark:border-zinc-800 bg-zinc-50/50 dark:bg-zinc-950/50">
+                    <div className="text-[10px] text-zinc-500">
+                      แสดงรายการที่ {indexOfFirstRecord + 1} ถึง {Math.min(indexOfLastRecord, records.length)} จากทั้งหมด {records.length} รายการ
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                        disabled={currentPage === 1}
+                        className="h-8 text-xs px-2 dark:border-zinc-700 dark:bg-zinc-900"
+                      >
+                        <ChevronLeft className="h-4 w-4 mr-1" />
+                        ก่อนหน้า
+                      </Button>
+                      <div className="text-xs font-medium text-zinc-600 dark:text-zinc-400 min-w-[3rem] text-center">
+                        {currentPage} / {totalPages}
+                      </div>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                        disabled={currentPage === totalPages}
+                        className="h-8 text-xs px-2 dark:border-zinc-700 dark:bg-zinc-900"
+                      >
+                        ถัดไป
+                        <ChevronRight className="h-4 w-4 ml-1" />
+                      </Button>
+                    </div>
+                  </div>
+                )}
               </Card>
 
             </div>

@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { AppSidebar } from "@/components/app-sidebar";
 import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { Card } from "@/components/ui/card";
-import { Trash2, Plus, Minus, ArrowLeft, ShoppingBag, Utensils, UtensilsCrossed, Loader2 } from "lucide-react";
+import { Trash2, Plus, Minus, ArrowLeft, ShoppingBag, Utensils, UtensilsCrossed, Loader2, AlertCircle } from "lucide-react";
 
 export default function CartPage() {
     const router = useRouter();
@@ -17,9 +17,13 @@ export default function CartPage() {
     const customerName = searchParams.get("customerName");
     const customerPhone = searchParams.get("customerPhone");
 
+    const token = searchParams.get("token") || "";
+
     const [cart, setCart] = useState([]);
     const [isClient, setIsClient] = useState(false);
     const [isLoading, setIsLoading] = useState(true);
+
+    const [authError, setAuthError] = useState(null);
 
     useEffect(() => {
         setIsClient(true);
@@ -27,6 +31,41 @@ export default function CartPage() {
             router.replace("/table-status-dashboard");
         }
     }, [table, type, router]);
+
+    useEffect(() => {
+        async function validateTable() {
+            try {
+                if (table && type !== 'takeout') {
+                    const resTable = await fetch("/api/tables", { cache: "no-store" });
+                    if (!resTable.ok) throw new Error("Failed to fetch tables");
+                    const tableData = await resTable.json();
+                    const tablesList = tableData.tables || (Array.isArray(tableData) ? tableData : []);
+
+                    const currentTable = tablesList.find(t => String(t.table_id) === String(table));
+
+                    if (!currentTable) {
+                        setAuthError("ไม่พบข้อมูลโต๊ะนี้ในระบบ");
+                        return;
+                    }
+
+                    if (currentTable.status !== "มีลูกค้า") {
+                        setAuthError("ไม่สามารถสั่งอาหารได้ โต๊ะนี้อาจกำลังรอชำระเงิน หรือปิดโต๊ะไปแล้ว");
+                        return;
+                    }
+
+                    if (currentTable.session_token && currentTable.session_token !== token) {
+                        setAuthError("QR Code นี้หมดอายุแล้ว กรุณาติดต่อพนักงาน");
+                        return;
+                    }
+                }
+            } catch (error) {
+                console.error(error);
+                setAuthError("เกิดข้อผิดพลาดในการตรวจสอบข้อมูล");
+            }
+        }
+
+        validateTable();
+    }, [table, type, token]);
 
     const cartKey = useMemo(() => {
         if (table) return `cart_${table}`;
@@ -100,6 +139,12 @@ export default function CartPage() {
             alert("ตะกร้าว่าง ไม่สามารถสั่งอาหารได้");
             return;
         }
+
+        if (authError) {
+            alert(authError);
+            return;
+        }
+
         const isConfirmed = window.confirm(
             `ยืนยันสั่งอาหารยอดรวม ${totalPrice.toLocaleString("th-TH")} บาท ใช่หรือไม่?`
         );
@@ -122,7 +167,8 @@ export default function CartPage() {
                 type: type || 'dine_in',
                 customerName: customerName || null,
                 customerPhone: customerPhone || null,
-                table_number: table ? Number(table) : null
+                table_number: table ? Number(table) : null,
+                session_token: token 
             };
 
             const res = await fetch("/api/orders", {
@@ -135,7 +181,13 @@ export default function CartPage() {
             if (res.ok) {
                 if (cartKey) localStorage.removeItem(cartKey);
                 setCart([]);
-                router.push("/table");
+
+                if (type === 'takeout') {
+                    router.push("/table-status-dashboard");
+                } else {
+                    router.push(`/orders?table=${table}&token=${token}`);
+                }
+
             } else {
                 alert(data.message || "เกิดข้อผิดพลาดในการบันทึกคำสั่งซื้อ");
             }
@@ -147,7 +199,7 @@ export default function CartPage() {
 
     const backUrl = type === 'takeout'
         ? `/orders?type=takeout&customerName=${encodeURIComponent(customerName || '')}&customerPhone=${encodeURIComponent(customerPhone || '')}`
-        : `/orders?table=${table}`;
+        : `/orders?table=${table}&token=${token}`;
 
     if (!isClient) return null;
 
@@ -187,6 +239,21 @@ export default function CartPage() {
                         <div className="flex flex-col items-center justify-center h-[60vh] gap-4">
                             <Loader2 className="h-10 w-10 animate-spin text-orange-600" />
                             <p className="text-sm font-medium animate-pulse text-orange-600">กำลังโหลดตะกร้า...</p>
+                        </div>
+                    ) : authError ? (
+                        <div className="flex flex-col items-center justify-center h-[60vh] gap-4 text-center">
+                            <div className="p-4 bg-red-50 rounded-full dark:bg-red-950/30">
+                                <AlertCircle className="h-16 w-16 text-red-500 dark:text-red-400" />
+                            </div>
+                            <h2 className="text-xl font-bold text-gray-900 dark:text-zinc-100">ไม่สามารถดำเนินการได้</h2>
+                            <p className="text-gray-500 dark:text-gray-400 max-w-sm">{authError}</p>
+                            <Button
+                                variant="outline"
+                                className="mt-4"
+                                onClick={() => router.push("/table-status-dashboard")}
+                            >
+                                กลับไปหน้าจัดการโต๊ะ
+                            </Button>
                         </div>
                     ) : cart.length === 0 ? (
                         <div className="flex flex-col items-center justify-center h-[60vh] text-gray-400 gap-4">
@@ -297,7 +364,7 @@ export default function CartPage() {
                     )}
                 </main>
 
-                {cart.length > 0 && (
+                {cart.length > 0 && !authError && (
                     <div className="fixed bottom-0 right-0 w-full md:pl-64 z-20">
                         <div
                             className="bg-white border-t border-gray-200 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)] p-3 px-6 flex items-center justify-between gap-4 max-w-screen-2xl mx-auto

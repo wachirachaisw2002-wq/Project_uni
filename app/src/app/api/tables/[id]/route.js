@@ -50,16 +50,17 @@ export async function GET(request, context) {
 export async function PUT(request, context) {
   const { id: rawId } = await context.params;
   const tableId = Number(rawId);
-  const { action, status, targetTableId } = await request.json();
+
+  const { action, status, targetTableId, session_token } = await request.json();
   const conn = await pool.getConnection();
 
   try {
     await conn.beginTransaction();
 
     if (action === "resetAll" || (tableId === 0 && action === "resetAll")) {
-      await conn.query("UPDATE tables SET status = 'ว่าง', order_count = 0, group_id = NULL");
+      await conn.query("UPDATE tables SET status = 'ว่าง', order_count = 0, group_id = NULL, session_token = NULL");
       await conn.query("UPDATE orders SET paid = 1 WHERE paid = 0 AND order_type = 'DINE_IN'");
-      
+
       await conn.commit();
       return NextResponse.json({ ok: true });
     }
@@ -90,9 +91,8 @@ export async function PUT(request, context) {
 
       await conn.query("UPDATE orders SET table_number = ? WHERE table_number = ? AND paid = 0", [targetTable.number, sourceTable.number]);
 
-      await updateTableFlexible(conn, "status = 'ว่าง', order_count = 0, group_id = NULL", tableId);
-
-      await updateTableFlexible(conn, "status = 'มีลูกค้า', order_count = ?, group_id = ?", targetTableId, [sourceTable.order_count || 0, sourceTable.group_id]);
+      await updateTableFlexible(conn, "status = 'ว่าง', order_count = 0, group_id = NULL, session_token = NULL", tableId);
+      await updateTableFlexible(conn, "status = 'มีลูกค้า', order_count = ?, group_id = ?, session_token = ?", targetTableId, [sourceTable.order_count || 0, sourceTable.group_id, sourceTable.session_token]);
     }
 
     else if (action === "unmergeTable") {
@@ -109,13 +109,17 @@ export async function PUT(request, context) {
 
     else if (action === "changeStatus") {
       if (status === "ว่าง") {
-        const ok = await updateTableFlexible(conn, "status = 'ว่าง', order_count = 0, group_id = NULL", tableId);
+        const ok = await updateTableFlexible(conn, "status = 'ว่าง', order_count = 0, group_id = NULL, session_token = NULL", tableId);
         if (ok) {
           const tData = await getTableData(conn, tableId);
           if (tData) await conn.query("UPDATE orders SET paid = 1 WHERE table_number = ? AND paid = 0", [tData.number]);
         }
       } else {
-        await updateTableFlexible(conn, "status = ?", tableId, [status]);
+        if (session_token !== undefined) {
+          await updateTableFlexible(conn, "status = ?, session_token = ?", tableId, [status, session_token]);
+        } else {
+          await updateTableFlexible(conn, "status = ?", tableId, [status]);
+        }
       }
     }
 

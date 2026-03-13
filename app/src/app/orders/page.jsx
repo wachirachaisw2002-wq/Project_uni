@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { Search, ShoppingCart, Plus, Minus, UtensilsCrossed, Trash2, Ban, Loader2 } from "lucide-react";
+import { Search, ShoppingCart, Plus, Minus, UtensilsCrossed, Trash2, Ban, Loader2, AlertCircle } from "lucide-react";
 import {
   Select,
   SelectTrigger,
@@ -35,6 +35,7 @@ export default function OrderPage() {
     [searchParams]
   );
   const selectedTable = tableParam || "";
+  const token = searchParams.get("token") || "";
 
   const orderType = searchParams.get("type");
   const customerName = searchParams.get("customerName");
@@ -46,10 +47,7 @@ export default function OrderPage() {
   const [selectedCategory, setSelectedCategory] = useState("ทั้งหมด");
   const [isLoading, setIsLoading] = useState(true);
 
-  const [showDialog, setShowDialog] = useState(false);
-  const [note, setNote] = useState("");
-  const [selectedMenu, setSelectedMenu] = useState(null);
-  const [quantity, setQuantity] = useState(1);
+  const [authError, setAuthError] = useState(null);
 
   const categories = useMemo(() => {
     const set = new Set();
@@ -82,19 +80,55 @@ export default function OrderPage() {
   }, [tableParam, orderType, router]);
 
   useEffect(() => {
-    async function fetchMenus() {
+    async function validateAndFetchData() {
       try {
-        const res = await fetch("/api/menu", { cache: "no-store" });
-        const data = await res.json();
-        setMenus(Array.isArray(data) ? data : []);
+        setIsLoading(true);
+        setAuthError(null);
+
+        if (selectedTable && orderType !== 'takeout') {
+          const resTable = await fetch("/api/tables", { cache: "no-store" });
+          if (!resTable.ok) throw new Error("Failed to fetch tables");
+          const tableData = await resTable.json();
+          const tablesList = tableData.tables || (Array.isArray(tableData) ? tableData : []);
+
+          const currentTable = tablesList.find(t => String(t.table_id) === String(selectedTable));
+
+          if (!currentTable) {
+            setAuthError("ไม่พบข้อมูลโต๊ะนี้ในระบบ");
+            setIsLoading(false);
+            return;
+          }
+
+          if (currentTable.status !== "มีลูกค้า") {
+            setAuthError("ไม่สามารถสั่งอาหารได้ โต๊ะนี้อาจกำลังรอชำระเงิน หรือปิดโต๊ะไปแล้ว");
+            setIsLoading(false);
+            return;
+          }
+
+          if (currentTable.session_token && currentTable.session_token !== token) {
+            setAuthError("QR Code นี้หมดอายุแล้ว หรือไม่ถูกต้อง กรุณาติดต่อพนักงาน");
+            setIsLoading(false);
+            return;
+          }
+        }
+
+        const resMenu = await fetch("/api/menu", { cache: "no-store" });
+        if (!resMenu.ok) throw new Error("Failed to fetch menu");
+        const menuData = await resMenu.json();
+        setMenus(Array.isArray(menuData) ? menuData : []);
+
       } catch (error) {
         console.error(error);
+        setAuthError("เกิดข้อผิดพลาดในการตรวจสอบข้อมูล กรุณาลองใหม่อีกครั้ง");
       } finally {
-        setIsLoading(false); 
+        setIsLoading(false);
       }
     }
-    fetchMenus();
-  }, []);
+
+    if (selectedTable || orderType === 'takeout') {
+      validateAndFetchData();
+    }
+  }, [selectedTable, orderType, token]);
 
   const getCartKey = () => {
     if (selectedTable) return `cart_${selectedTable}`;
@@ -111,6 +145,11 @@ export default function OrderPage() {
       setCart([]);
     }
   }, [selectedTable, orderType]);
+
+  const [showDialog, setShowDialog] = useState(false);
+  const [note, setNote] = useState("");
+  const [selectedMenu, setSelectedMenu] = useState(null);
+  const [quantity, setQuantity] = useState(1);
 
   function addToCart(item, noteText, qty = 1) {
     if (!selectedTable && orderType !== 'takeout') { alert("ไม่พบเลขโต๊ะ"); return; }
@@ -178,7 +217,7 @@ export default function OrderPage() {
 
   const cartUrl = orderType === 'takeout'
     ? `/cart?type=takeout&customerName=${encodeURIComponent(customerName || '')}&customerPhone=${encodeURIComponent(customerPhone || '')}`
-    : `/cart?table=${selectedTable}`;
+    : `/cart?table=${selectedTable}&token=${token}`; 
 
   return (
     <SidebarProvider>
@@ -204,6 +243,7 @@ export default function OrderPage() {
           <Button
             className="relative bg-gray-900 hover:bg-gray-800 text-white shadow-md dark:bg-zinc-800 dark:hover:bg-zinc-700 dark:text-zinc-50"
             onClick={() => router.push(cartUrl)}
+            disabled={!!authError} 
           >
             <ShoppingCart className="mr-2 h-4 w-4" />
             ตะกร้า
@@ -221,7 +261,15 @@ export default function OrderPage() {
           {isLoading ? (
             <div className="flex flex-col items-center justify-center h-[60vh] gap-4">
               <Loader2 className="h-10 w-10 animate-spin text-orange-600" />
-              <p className="text-sm font-medium animate-pulse text-orange-600">กำลังโหลดเมนู...</p>
+              <p className="text-sm font-medium animate-pulse text-orange-600">กำลังโหลดข้อมูล...</p>
+            </div>
+          ) : authError ? (
+            <div className="flex flex-col items-center justify-center h-[60vh] gap-4 text-center">
+              <div className="p-4 bg-red-50 rounded-full dark:bg-red-950/30">
+                <AlertCircle className="h-16 w-16 text-red-500 dark:text-red-400" />
+              </div>
+              <h2 className="text-xl font-bold text-gray-900 dark:text-zinc-100">ไม่สามารถดำเนินการได้</h2>
+              <p className="text-gray-500 dark:text-gray-400 max-w-sm">{authError}</p>
             </div>
           ) : (
             <>
