@@ -247,13 +247,7 @@ export default function CartPage() {
                             </div>
                             <h2 className="text-xl font-bold text-gray-900 dark:text-zinc-100">ไม่สามารถดำเนินการได้</h2>
                             <p className="text-gray-500 dark:text-gray-400 max-w-sm">{authError}</p>
-                            <Button
-                                variant="outline"
-                                className="mt-4"
-                                onClick={() => router.push("/table-status-dashboard")}
-                            >
-                                กลับไปหน้าจัดการโต๊ะ
-                            </Button>
+                            
                         </div>
                     ) : cart.length === 0 ? (
                         <div className="flex flex-col items-center justify-center h-[60vh] text-gray-400 gap-4">
