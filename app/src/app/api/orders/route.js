@@ -131,7 +131,8 @@ export async function GET(request) {
 export async function POST(request) {
   let conn;
   try {
-    const { table_number, items, type = 'dine_in', customerName = null, customerPhone = null } = await request.json();
+    // รับ session_token มาจาก Client
+    const { table_number, items, type = 'dine_in', customerName = null, customerPhone = null, session_token } = await request.json();
 
     let tableNum = null;
     let dbOrderType = 'DINE_IN';
@@ -162,6 +163,33 @@ export async function POST(request) {
 
     conn = await pool.getConnection();
 
+    // --- ส่วนที่เพิ่มใหม่: ตรวจสอบ Session Token และสถานะโต๊ะสำหรับทานที่ร้าน ---
+    if (dbOrderType === 'DINE_IN') {
+      const [tableData] = await conn.query(
+        "SELECT status, session_token FROM tables WHERE table_id = ? OR number = ?",
+        [tableNum, tableNum]
+      );
+
+      if (tableData.length === 0) {
+        conn.release();
+        return NextResponse.json({ message: "ไม่พบข้อมูลโต๊ะในระบบ" }, { status: 404 });
+      }
+
+      const currentTable = tableData[0];
+
+      if (currentTable.status !== "มีลูกค้า") {
+        conn.release();
+        return NextResponse.json({ message: "โต๊ะนี้ไม่ได้เปิดใช้งาน หรือกำลังรอชำระเงิน" }, { status: 403 });
+      }
+
+      // ถ้าโต๊ะมี Token แต่ค่าที่ส่งมาไม่ตรงกัน
+      if (currentTable.session_token && currentTable.session_token !== session_token) {
+        conn.release();
+        return NextResponse.json({ message: "QR Code หมดอายุ หรือไม่ถูกต้อง กรุณาติดต่อพนักงาน" }, { status: 403 });
+      }
+    }
+    // ---------------------------------------------------------
+
     const menuIds = safeItems.map((i) => i.menu_id);
     if (menuIds.length > 0) {
       const [unavailableItems] = await conn.query(
@@ -171,7 +199,7 @@ export async function POST(request) {
 
       if (unavailableItems.length > 0) {
         const names = unavailableItems.map((i) => i.name).join(", ");
-        conn.release(); // คืน Connection ทันที
+        conn.release();
         return NextResponse.json(
           { message: `ขออภัย รายการต่อไปนี้สินค้าหมด: ${names}` },
           { status: 400 }
@@ -242,7 +270,8 @@ export async function POST(request) {
 export async function PATCH(request) {
   let conn;
   try {
-    const { table_number, items } = await request.json();
+    // รับ session_token เข้ามาตรวจสอบเช่นกัน (กรณีที่มีคนใช้ Endpoint นี้เพิ่มออเดอร์)
+    const { table_number, items, session_token } = await request.json();
     const tableNum = Number(table_number);
 
     if (!tableNum) return NextResponse.json({ message: "ระบุเลขโต๊ะ" }, { status: 400 });
@@ -256,6 +285,25 @@ export async function PATCH(request) {
 
     conn = await pool.getConnection();
 
+    // --- ตรวจสอบ Token ให้ PATCH ด้วย ป้องกันคนยิง API อ้อม ---
+    const [tableData] = await conn.query(
+      "SELECT status, session_token FROM tables WHERE table_id = ? OR number = ?",
+      [tableNum, tableNum]
+    );
+
+    if (tableData.length > 0) {
+      const currentTable = tableData[0];
+      if (currentTable.status !== "มีลูกค้า") {
+        conn.release();
+        return NextResponse.json({ message: "โต๊ะนี้ไม่ได้เปิดใช้งาน" }, { status: 403 });
+      }
+      if (currentTable.session_token && currentTable.session_token !== session_token) {
+        conn.release();
+        return NextResponse.json({ message: "Token ไม่ถูกต้อง" }, { status: 403 });
+      }
+    }
+    // -----------------------------------------------------
+
     const menuIds = safeItems.map((i) => i.menu_id);
     if (menuIds.length > 0) {
       const [unavailableItems] = await conn.query(
@@ -265,7 +313,7 @@ export async function PATCH(request) {
 
       if (unavailableItems.length > 0) {
         const names = unavailableItems.map((i) => i.name).join(", ");
-        conn.release(); // คืน Connection ทันที
+        conn.release();
         return NextResponse.json(
           { message: `ขออภัย รายการต่อไปนี้สินค้าหมด: ${names}` },
           { status: 400 }

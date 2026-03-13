@@ -104,7 +104,7 @@ async function updateOrderTotal(conn, orderId) {
             FROM order_items oi
             JOIN menus m ON oi.menu_id = m.menu_id
             WHERE oi.order_id = ? 
-            AND (oi.status != 'ยกเลิก' OR oi.status IS NULL) -- เพิ่มเงื่อนไขนี้
+            AND (oi.status != 'ยกเลิก' OR oi.status IS NULL) 
         )
         WHERE o.order_id = ?
     `, [orderId, orderId]);
