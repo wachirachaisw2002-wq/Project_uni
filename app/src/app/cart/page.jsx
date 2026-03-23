@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { AppSidebar } from "@/components/app-sidebar";
@@ -8,7 +8,10 @@ import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/components/ui/s
 import { Card } from "@/components/ui/card";
 import { Trash2, Plus, Minus, ArrowLeft, ShoppingBag, Utensils, UtensilsCrossed, Loader2, AlertCircle } from "lucide-react";
 
-export default function CartPage() {
+// ----------------------------------------------------------------------
+// 1. สร้าง Component ย่อย (CartContent) เพื่อรับหน้าที่เรียกใช้ useSearchParams
+// ----------------------------------------------------------------------
+function CartContent() {
     const router = useRouter();
     const searchParams = useSearchParams();
 
@@ -168,7 +171,7 @@ export default function CartPage() {
                 customerName: customerName || null,
                 customerPhone: customerPhone || null,
                 table_number: table ? Number(table) : null,
-                session_token: token 
+                session_token: token
             };
 
             const res = await fetch("/api/orders", {
@@ -204,194 +207,209 @@ export default function CartPage() {
     if (!isClient) return null;
 
     return (
-        <SidebarProvider>
-            <AppSidebar />
-            <SidebarInset>
-                <header className="sticky top-0 z-10 flex h-16 items-center justify-between px-6 border-b 
-                    bg-white/95 backdrop-blur shadow-sm
-                    dark:bg-black/95 dark:border-zinc-900 dark:shadow-none"
-                >
-                    <div className="flex items-center gap-4">
-                        <SidebarTrigger />
-                        <div>
-                            <h1 className="text-sm font-bold text-zinc-900 dark:text-zinc-100">สรุปรายการสั่งซื้อ</h1>
-                            <p className="text-xs text-gray-500 dark:text-zinc-500">
-                                {type === 'takeout'
-                                    ? `สั่งกลับบ้าน: ${customerName || '-'} ${customerPhone ? `(${customerPhone})` : ''}`
-                                    : `โต๊ะ: ${table || "-"}`
-                                }
-                            </p>
-                        </div>
+        <SidebarInset>
+            <header className="sticky top-0 z-10 flex h-16 items-center justify-between px-6 border-b 
+                bg-white/95 backdrop-blur shadow-sm
+                dark:bg-black/95 dark:border-zinc-900 dark:shadow-none"
+            >
+                <div className="flex items-center gap-4">
+                    <SidebarTrigger />
+                    <div>
+                        <h1 className="text-sm font-bold text-zinc-900 dark:text-zinc-100">สรุปรายการสั่งซื้อ</h1>
+                        <p className="text-xs text-gray-500 dark:text-zinc-500">
+                            {type === 'takeout'
+                                ? `สั่งกลับบ้าน: ${customerName || '-'} ${customerPhone ? `(${customerPhone})` : ''}`
+                                : `โต๊ะ: ${table || "-"}`
+                            }
+                        </p>
                     </div>
-                    <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => router.push(backUrl)}
-                        className="text-gray-600 hover:text-gray-900 dark:text-zinc-400 dark:hover:bg-zinc-900"
-                    >
-                        <ArrowLeft className="mr-2 h-4 w-4" />
-                        เลือกเมนูเพิ่ม
-                    </Button>
-                </header>
+                </div>
+                <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => router.push(backUrl)}
+                    className="text-gray-600 hover:text-gray-900 dark:text-zinc-400 dark:hover:bg-zinc-900"
+                >
+                    <ArrowLeft className="mr-2 h-4 w-4" />
+                    เลือกเมนูเพิ่ม
+                </Button>
+            </header>
 
-                <main className="p-4 sm:p-6 bg-gray-50/50 min-h-[calc(100vh-4rem-5rem)] flex flex-col gap-4 pb-32 dark:bg-black">
-                    {isLoading ? (
-                        <div className="flex flex-col items-center justify-center h-[60vh] gap-4">
-                            <Loader2 className="h-10 w-10 animate-spin text-orange-600" />
-                            <p className="text-sm font-medium animate-pulse text-orange-600">กำลังโหลดตะกร้า...</p>
+            <main className="p-4 sm:p-6 bg-gray-50/50 min-h-[calc(100vh-4rem-5rem)] flex flex-col gap-4 pb-32 dark:bg-black">
+                {isLoading ? (
+                    <div className="flex flex-col items-center justify-center h-[60vh] gap-4">
+                        <Loader2 className="h-10 w-10 animate-spin text-orange-600" />
+                        <p className="text-sm font-medium animate-pulse text-orange-600">กำลังโหลดตะกร้า...</p>
+                    </div>
+                ) : authError ? (
+                    <div className="flex flex-col items-center justify-center h-[60vh] gap-4 text-center">
+                        <div className="p-4 bg-red-50 rounded-full dark:bg-red-950/30">
+                            <AlertCircle className="h-16 w-16 text-red-500 dark:text-red-400" />
                         </div>
-                    ) : authError ? (
-                        <div className="flex flex-col items-center justify-center h-[60vh] gap-4 text-center">
-                            <div className="p-4 bg-red-50 rounded-full dark:bg-red-950/30">
-                                <AlertCircle className="h-16 w-16 text-red-500 dark:text-red-400" />
-                            </div>
-                            <h2 className="text-xl font-bold text-gray-900 dark:text-zinc-100">ไม่สามารถดำเนินการได้</h2>
-                            <p className="text-gray-500 dark:text-gray-400 max-w-sm">{authError}</p>
-                            
+                        <h2 className="text-xl font-bold text-gray-900 dark:text-zinc-100">ไม่สามารถดำเนินการได้</h2>
+                        <p className="text-gray-500 dark:text-gray-400 max-w-sm">{authError}</p>
+                    </div>
+                ) : cart.length === 0 ? (
+                    <div className="flex flex-col items-center justify-center h-[60vh] text-gray-400 gap-4">
+                        <div className="bg-gray-100 p-6 rounded-full dark:bg-zinc-900">
+                            <ShoppingBag className="h-10 w-10 opacity-30 dark:text-zinc-500" />
                         </div>
-                    ) : cart.length === 0 ? (
-                        <div className="flex flex-col items-center justify-center h-[60vh] text-gray-400 gap-4">
-                            <div className="bg-gray-100 p-6 rounded-full dark:bg-zinc-900">
-                                <ShoppingBag className="h-10 w-10 opacity-30 dark:text-zinc-500" />
-                            </div>
-                            <div className="text-center">
-                                <h3 className="text-base font-semibold text-gray-600 dark:text-zinc-400">ตะกร้าของคุณว่างเปล่า</h3>
-                                <p className="text-xs text-gray-400 dark:text-zinc-600">เลือกเมนูอาหารที่ต้องการเพื่อเปิดโต๊ะ</p>
-                            </div>
-                            <Button
-                                className="bg-orange-600 hover:bg-orange-700 mt-2"
-                                onClick={() => router.push(backUrl)}
-                            >
-                                <Utensils className="mr-2 h-4 w-4" />
-                                ไปหน้าสั่งอาหาร
-                            </Button>
+                        <div className="text-center">
+                            <h3 className="text-base font-semibold text-gray-600 dark:text-zinc-400">ตะกร้าของคุณว่างเปล่า</h3>
+                            <p className="text-xs text-gray-400 dark:text-zinc-600">เลือกเมนูอาหารที่ต้องการเพื่อเปิดโต๊ะ</p>
                         </div>
-                    ) : (
-                        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-2 gap-3 max-w-5xl mx-auto w-full">
-                            {cart.map((item) => {
-                                const k = keyOf(item);
-                                const compositeKey = `${k}-${item.note || ""}`;
-                                const lineTotal = Number(item.price || 0) * Number(item.qty || 0);
+                        <Button
+                            className="bg-orange-600 hover:bg-orange-700 mt-2"
+                            onClick={() => router.push(backUrl)}
+                        >
+                            <Utensils className="mr-2 h-4 w-4" />
+                            ไปหน้าสั่งอาหาร
+                        </Button>
+                    </div>
+                ) : (
+                    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-2 gap-3 max-w-5xl mx-auto w-full">
+                        {cart.map((item) => {
+                            const k = keyOf(item);
+                            const compositeKey = `${k}-${item.note || ""}`;
+                            const lineTotal = Number(item.price || 0) * Number(item.qty || 0);
 
-                                return (
-                                    <Card
-                                        key={compositeKey}
-                                        className="flex flex-row overflow-hidden border border-gray-100 shadow-sm hover:shadow-md transition-shadow bg-white h-28 sm:h-32 dark:bg-black dark:border-zinc-900 dark:shadow-none"
-                                    >
-                                        <div className="h-full aspect-square p-2 flex-shrink-0">
-                                            <div
-                                                className="w-full h-full relative overflow-hidden rounded-lg bg-gray-100 shadow-sm border border-gray-100 dark:bg-zinc-900 dark:border-zinc-800"
-                                            >
-                                                {item.image ? (
-                                                    <img
-                                                        src={item.image}
-                                                        alt={item.name}
-                                                        className="w-full h-full object-cover object-center"
-                                                    />
-                                                ) : (
-                                                    <div className="w-full h-full flex flex-col items-center justify-center text-gray-400 dark:text-zinc-700">
-                                                        <UtensilsCrossed className="h-6 w-6 mb-1 opacity-50" />
-                                                        <span className="text-[10px]">ไม่มีรูป</span>
-                                                    </div>
+                            return (
+                                <Card
+                                    key={compositeKey}
+                                    className="flex flex-row overflow-hidden border border-gray-100 shadow-sm hover:shadow-md transition-shadow bg-white h-28 sm:h-32 dark:bg-black dark:border-zinc-900 dark:shadow-none"
+                                >
+                                    <div className="h-full aspect-square p-2 flex-shrink-0">
+                                        <div className="w-full h-full relative overflow-hidden rounded-lg bg-gray-100 shadow-sm border border-gray-100 dark:bg-zinc-900 dark:border-zinc-800">
+                                            {item.image ? (
+                                                <img
+                                                    src={item.image}
+                                                    alt={item.name}
+                                                    className="w-full h-full object-cover object-center"
+                                                />
+                                            ) : (
+                                                <div className="w-full h-full flex flex-col items-center justify-center text-gray-400 dark:text-zinc-700">
+                                                    <UtensilsCrossed className="h-6 w-6 mb-1 opacity-50" />
+                                                    <span className="text-[10px]">ไม่มีรูป</span>
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
+
+                                    <div className="flex flex-col flex-1 py-3 pr-3 pl-0 justify-between">
+                                        <div className="flex justify-between items-start gap-1">
+                                            <div className="overflow-hidden">
+                                                <h3 className="font-bold text-sm sm:text-base text-gray-800 dark:text-zinc-50 line-clamp-1">{item.name}</h3>
+                                                {item.note && (
+                                                    <p className="text-[10px] text-orange-600 truncate max-w-[150px] mt-1 bg-orange-50 px-2 py-0.5 rounded inline-block dark:bg-orange-950/40 dark:text-orange-400">
+                                                        * {item.note}
+                                                    </p>
                                                 )}
                                             </div>
+                                            <button
+                                                className="text-gray-400 hover:text-red-600 p-1 -mt-1 -mr-1 dark:text-zinc-600 dark:hover:text-red-500 transition-colors"
+                                                onClick={() => removeItem(item)}
+                                            >
+                                                <Trash2 className="w-4 h-4" />
+                                            </button>
                                         </div>
 
-                                        <div className="flex flex-col flex-1 py-3 pr-3 pl-0 justify-between">
-                                            <div className="flex justify-between items-start gap-1">
-                                                <div className="overflow-hidden">
-                                                    <h3 className="font-bold text-sm sm:text-base text-gray-800 dark:text-zinc-50 line-clamp-1">{item.name}</h3>
-                                                    {item.note && (
-                                                        <p className="text-[10px] text-orange-600 truncate max-w-[150px] mt-1 bg-orange-50 px-2 py-0.5 rounded inline-block dark:bg-orange-950/40 dark:text-orange-400">
-                                                            * {item.note}
-                                                        </p>
-                                                    )}
-                                                </div>
-                                                <button
-                                                    className="text-gray-400 hover:text-red-600 p-1 -mt-1 -mr-1 dark:text-zinc-600 dark:hover:text-red-500 transition-colors"
-                                                    onClick={() => removeItem(item)}
-                                                >
-                                                    <Trash2 className="w-4 h-4" />
-                                                </button>
+                                        <div className="flex items-end justify-between mt-1">
+                                            <div className="text-xs text-gray-500 dark:text-zinc-500">
+                                                {Number(item.price).toLocaleString()} บ.
                                             </div>
 
-                                            <div className="flex items-end justify-between mt-1">
-                                                <div className="text-xs text-gray-500 dark:text-zinc-500">
-                                                    {Number(item.price).toLocaleString()} บ.
-                                                </div>
-
-                                                <div className="flex items-center gap-3">
-                                                    <div
-                                                        className="flex items-center bg-gray-50 rounded border border-gray-200 h-6 dark:bg-zinc-900 dark:border-zinc-800"
+                                            <div className="flex items-center gap-3">
+                                                <div className="flex items-center bg-gray-50 rounded border border-gray-200 h-6 dark:bg-zinc-900 dark:border-zinc-800">
+                                                    <Button
+                                                        variant="ghost"
+                                                        size="icon"
+                                                        className="h-6 w-6 rounded-l hover:bg-white dark:hover:bg-zinc-800 dark:text-zinc-400"
+                                                        onClick={() => decreaseQty(item)}
                                                     >
-                                                        <Button
-                                                            variant="ghost"
-                                                            size="icon"
-                                                            className="h-6 w-6 rounded-l hover:bg-white dark:hover:bg-zinc-800 dark:text-zinc-400"
-                                                            onClick={() => decreaseQty(item)}
-                                                        >
-                                                            <Minus className="h-3 w-3" />
-                                                        </Button>
-                                                        <span className="w-6 text-center font-bold text-xs dark:text-zinc-50">{item.qty}</span>
-                                                        <Button
-                                                            variant="ghost"
-                                                            size="icon"
-                                                            className="h-6 w-6 rounded-r hover:bg-white dark:hover:bg-zinc-800 dark:text-zinc-400"
-                                                            onClick={() => increaseQty(item)}
-                                                        >
-                                                            <Plus className="h-3 w-3" />
-                                                        </Button>
-                                                    </div>
-
-                                                    <div className="text-right min-w-[60px]">
-                                                        <span className="block font-bold text-sm sm:text-base text-gray-900 dark:text-zinc-50">
-                                                            {lineTotal.toLocaleString()}
-                                                        </span>
-                                                    </div>
+                                                        <Minus className="h-3 w-3" />
+                                                    </Button>
+                                                    <span className="w-6 text-center font-bold text-xs dark:text-zinc-50">{item.qty}</span>
+                                                    <Button
+                                                        variant="ghost"
+                                                        size="icon"
+                                                        className="h-6 w-6 rounded-r hover:bg-white dark:hover:bg-zinc-800 dark:text-zinc-400"
+                                                        onClick={() => increaseQty(item)}
+                                                    >
+                                                        <Plus className="h-3 w-3" />
+                                                    </Button>
+                                                </div>
+                                                <div className="text-right min-w-[60px]">
+                                                    <span className="block font-bold text-sm sm:text-base text-gray-900 dark:text-zinc-50">
+                                                        {lineTotal.toLocaleString()}
+                                                    </span>
                                                 </div>
                                             </div>
                                         </div>
-                                    </Card>
-                                );
-                            })}
-                        </div>
-                    )}
-                </main>
-
-                {cart.length > 0 && !authError && (
-                    <div className="fixed bottom-0 right-0 w-full md:pl-64 z-20">
-                        <div
-                            className="bg-white border-t border-gray-200 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)] p-3 px-6 flex items-center justify-between gap-4 max-w-screen-2xl mx-auto
-                            dark:bg-black dark:border-zinc-900 dark:shadow-none"
-                        >
-                            <div className="flex flex-col">
-                                <span className="text-[10px] text-gray-500 dark:text-zinc-500">ยอดรวม ({cart.reduce((a, b) => a + b.qty, 0)} ชิ้น)</span>
-                                <span className="text-xl font-bold text-orange-600 leading-tight dark:text-orange-500">
-                                    {totalPrice.toLocaleString("th-TH")} <span className="text-xs text-gray-800 font-normal dark:text-zinc-400">บาท</span>
-                                </span>
-                            </div>
-
-                            <div className="flex gap-2">
-                                <Button
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={() => router.push(backUrl)}
-                                    className="dark:border-zinc-800 dark:hover:bg-zinc-900 dark:text-zinc-300"
-                                >
-                                    สั่งเพิ่ม
-                                </Button>
-                                <Button
-                                    size="sm"
-                                    className="bg-orange-600 hover:bg-orange-700 text-white font-bold shadow-md px-6 dark:bg-orange-700 dark:hover:bg-orange-600"
-                                    onClick={confirmOrder}
-                                >
-                                    ยืนยัน
-                                </Button>
-                            </div>
-                        </div>
+                                    </div>
+                                </Card>
+                            );
+                        })}
                     </div>
                 )}
-            </SidebarInset>
+            </main>
+
+            {cart.length > 0 && !authError && (
+                <div className="fixed bottom-0 right-0 w-full md:pl-64 z-20">
+                    <div
+                        className="bg-white border-t border-gray-200 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)] p-3 px-6 flex items-center justify-between gap-4 max-w-screen-2xl mx-auto
+                            dark:bg-black dark:border-zinc-900 dark:shadow-none"
+                    >
+                        <div className="flex flex-col">
+                            <span className="text-[10px] text-gray-500 dark:text-zinc-500">ยอดรวม ({cart.reduce((a, b) => a + b.qty, 0)} ชิ้น)</span>
+                            <span className="text-xl font-bold text-orange-600 leading-tight dark:text-orange-500">
+                                {totalPrice.toLocaleString("th-TH")} <span className="text-xs text-gray-800 font-normal dark:text-zinc-400">บาท</span>
+                            </span>
+                        </div>
+
+                        <div className="flex gap-2">
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => router.push(backUrl)}
+                                className="dark:border-zinc-800 dark:hover:bg-zinc-900 dark:text-zinc-300"
+                            >
+                                สั่งเพิ่ม
+                            </Button>
+                            <Button
+                                size="sm"
+                                className="bg-orange-600 hover:bg-orange-700 text-white font-bold shadow-md px-6 dark:bg-orange-700 dark:hover:bg-orange-600"
+                                onClick={confirmOrder}
+                            >
+                                ยืนยัน
+                            </Button>
+                        </div>
+                    </div>
+                </div>
+            )}
+        </SidebarInset>
+    );
+}
+
+// ----------------------------------------------------------------------
+// 2. หน้าหลัก (Default Export) ที่ทำหน้าที่เป็นเปลือกนอก และจัดการ Layout
+// ----------------------------------------------------------------------
+export default function CartPage() {
+    return (
+        <SidebarProvider>
+            <AppSidebar />
+            {/* Suspense Boundary: ป้องกัน Error ตอน Build และโชว์ Loading ตอนดึงข้อมูล URL */}
+            <Suspense fallback={
+                <SidebarInset>
+                    <div className="flex items-center justify-center min-h-screen bg-gray-50 dark:bg-black">
+                        <div className="flex flex-col items-center gap-4">
+                            <Loader2 className="h-8 w-8 animate-spin text-orange-600" />
+                            <p className="text-sm font-medium animate-pulse text-orange-600">กำลังโหลดข้อมูลตะกร้า...</p>
+                        </div>
+                    </div>
+                </SidebarInset>
+            }>
+                <CartContent />
+            </Suspense>
         </SidebarProvider>
     );
 }
