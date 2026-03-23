@@ -2,80 +2,69 @@ import { NextResponse } from "next/server";
 import pool from "@/lib/db";
 
 async function getTableData(conn, identifier) {
-  let [rows] = await conn.query("SELECT * FROM tables WHERE table_id = ?", [identifier]);
-  if (rows.length > 0) return rows[0];
-
-  [rows] = await conn.query("SELECT * FROM tables WHERE id = ?", [identifier]);
-  if (rows.length > 0) return rows[0];
-
-  [rows] = await conn.query("SELECT * FROM tables WHERE number = ?", [identifier]);
-  if (rows.length > 0) return rows[0];
-
+  // พยายามหาจาก table_id, id หรือ number
+  const queries = [
+    "SELECT * FROM tables WHERE table_id = ?",
+    "SELECT * FROM tables WHERE id = ?",
+    "SELECT * FROM tables WHERE number = ?"
+  ];
+  for (const sql of queries) {
+    const [rows] = await conn.query(sql, [identifier]);
+    if (rows.length > 0) return rows[0];
+  }
   return null;
 }
 
 async function updateTableFlexible(conn, setSql, identifier, params = []) {
-  let [res] = await conn.query(`UPDATE tables SET ${setSql} WHERE table_id = ?`, [...params, identifier]);
-  if (res.affectedRows > 0) return true;
-
-  [res] = await conn.query(`UPDATE tables SET ${setSql} WHERE id = ?`, [...params, identifier]);
-  if (res.affectedRows > 0) return true;
-
-  [res] = await conn.query(`UPDATE tables SET ${setSql} WHERE number = ?`, [...params, identifier]);
-  if (res.affectedRows > 0) return true;
-
+  const queries = [
+    `UPDATE tables SET ${setSql} WHERE table_id = ?`,
+    `UPDATE tables SET ${setSql} WHERE id = ?`,
+    `UPDATE tables SET ${setSql} WHERE number = ?`
+  ];
+  for (const sql of queries) {
+    const [res] = await conn.query(sql, [...params, identifier]);
+    if (res.affectedRows > 0) return true;
+  }
   return false;
 }
 
 export async function GET(request, context) {
   const { id: rawId } = await context.params;
   const conn = await pool.getConnection();
-
   try {
     const tableData = await getTableData(conn, rawId);
-
-    if (!tableData) {
-      return NextResponse.json({ message: "Table not found" }, { status: 404 });
-    }
-
+    if (!tableData) return NextResponse.json({ message: "Table not found" }, { status: 404 });
     return NextResponse.json(tableData);
   } catch (error) {
-    console.error("GET Table Error:", error);
     return NextResponse.json({ message: "Server Error" }, { status: 500 });
-  } finally {
-    conn.release();
-  }
+  } finally { conn.release(); }
 }
 
 export async function PUT(request, context) {
   const { id: rawId } = await context.params;
   const tableId = Number(rawId);
-
   const { action, status, targetTableId, session_token } = await request.json();
   const conn = await pool.getConnection();
 
   try {
     await conn.beginTransaction();
 
-    if (action === "resetAll" || (tableId === 0 && action === "resetAll")) {
+    if (action === "resetAll") {
       await conn.query("UPDATE tables SET status = 'ว่าง', order_count = 0, group_id = NULL, session_token = NULL");
       await conn.query("UPDATE orders SET paid = 1 WHERE paid = 0");
-
       await conn.commit();
       return NextResponse.json({ ok: true });
     }
 
-    if (!tableId) return NextResponse.json({ message: "Invalid ID" }, { status: 400 });
+    if (!tableId && tableId !== 0) return NextResponse.json({ message: "Invalid ID" }, { status: 400 });
 
     if (action === "mergeTable") {
       if (!targetTableId) throw new Error("ระบุโต๊ะหลัก");
-
       const masterTable = await getTableData(conn, targetTableId);
       if (!masterTable) throw new Error("ไม่พบโต๊ะหลัก");
 
-      let groupId = masterTable.group_id;
-      if (!groupId) {
-        groupId = `GRP-${Date.now()}`;
+      let groupId = masterTable.group_id || `GRP-${Date.now()}`;
+      if (!masterTable.group_id) {
         await updateTableFlexible(conn, "group_id = ?, status = 'มีลูกค้า'", targetTableId, [groupId]);
       }
       await updateTableFlexible(conn, "status = 'มีลูกค้า', group_id = ?", tableId, [groupId]);
@@ -83,16 +72,19 @@ export async function PUT(request, context) {
 
     else if (action === "moveTable") {
       if (!targetTableId) throw new Error("ระบุโต๊ะปลายทาง");
-
       const sourceTable = await getTableData(conn, tableId);
       const targetTable = await getTableData(conn, targetTableId);
-
       if (!sourceTable || !targetTable) throw new Error("ไม่พบข้อมูลโต๊ะ");
 
-      await conn.query("UPDATE orders SET table_number = ? WHERE table_number = ? AND paid = 0", [targetTable.number, sourceTable.number]);
+      // ย้ายออเดอร์: ใช้ CAST เพื่อป้องกัน Error incorrect DOUBLE value
+      await conn.query(
+        "UPDATE orders SET table_number = ? WHERE CAST(table_number AS CHAR) = CAST(? AS CHAR) AND paid = 0",
+        [targetTable.number, sourceTable.number]
+      );
 
       await updateTableFlexible(conn, "status = 'ว่าง', order_count = 0, group_id = NULL, session_token = NULL", tableId);
-      await updateTableFlexible(conn, "status = 'มีลูกค้า', order_count = ?, group_id = ?, session_token = ?", targetTableId, [sourceTable.order_count || 0, sourceTable.group_id, sourceTable.session_token]);
+      await updateTableFlexible(conn, "status = 'มีลูกค้า', order_count = ?, group_id = ?, session_token = ?",
+        targetTableId, [sourceTable.order_count || 0, sourceTable.group_id, sourceTable.session_token]);
     }
 
     else if (action === "unmergeTable") {
@@ -103,23 +95,17 @@ export async function PUT(request, context) {
       await updateTableFlexible(conn, "status = 'มีลูกค้า', order_count = 1, group_id = NULL", tableId);
     }
 
-    else if (action === "addOrder") {
-      await updateTableFlexible(conn, "order_count = order_count + 1", tableId);
-    }
-
     else if (action === "changeStatus") {
       if (status === "ว่าง") {
+        const tData = await getTableData(conn, tableId);
         const ok = await updateTableFlexible(conn, "status = 'ว่าง', order_count = 0, group_id = NULL, session_token = NULL", tableId);
-        if (ok) {
-          const tData = await getTableData(conn, tableId);
-          if (tData) await conn.query("UPDATE orders SET paid = 1 WHERE table_number = ? AND paid = 0", [tData.number]);
+        if (ok && tData) {
+          await conn.query("UPDATE orders SET paid = 1 WHERE CAST(table_number AS CHAR) = CAST(? AS CHAR) AND paid = 0", [tData.number]);
         }
       } else {
-        if (session_token !== undefined) {
-          await updateTableFlexible(conn, "status = ?, session_token = ?", tableId, [status, session_token]);
-        } else {
-          await updateTableFlexible(conn, "status = ?", tableId, [status]);
-        }
+        const sql = session_token !== undefined ? "status = ?, session_token = ?" : "status = ?";
+        const params = session_token !== undefined ? [status, session_token] : [status];
+        await updateTableFlexible(conn, sql, tableId, params);
       }
     }
 
@@ -127,8 +113,7 @@ export async function PUT(request, context) {
     return NextResponse.json({ ok: true });
   } catch (error) {
     await conn.rollback();
-    return NextResponse.json({ message: "Server Error", error: error.message }, { status: 500 });
-  } finally {
-    conn.release();
-  }
+    console.error("PUT Table Error:", error);
+    return NextResponse.json({ message: error.message || "Server Error" }, { status: 500 });
+  } finally { conn.release(); }
 }

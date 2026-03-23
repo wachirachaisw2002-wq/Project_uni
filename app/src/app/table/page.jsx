@@ -23,10 +23,17 @@ const fetchTableData = async () => {
 
 const updateTable = async (tableId, action, payload = {}) => {
   const res = await fetch(`/api/tables/${tableId}`, {
-    method: "PUT", headers: { "Content-Type": "application/json" },
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ action, ...payload }),
   });
-  if (!res.ok) throw new Error("Failed to update table");
+
+  if (!res.ok) {
+    const errText = await res.text();
+    let errMsg = errText;
+    try { errMsg = JSON.parse(errText).error || errText; } catch (e) { }
+    throw new Error(errMsg || "Failed to update table");
+  }
   return res.json();
 };
 
@@ -102,9 +109,17 @@ export default function TableStatus() {
 
   const handleAction = async (table, action, status = null) => {
     try {
-      let payload = { status };
+      let payload = {};
+      if (status !== null) {
+        payload.status = status;
+      }
+
       if (action === "changeStatus") {
-        payload.session_token = status === "มีลูกค้า" ? Date.now().toString(36) + Math.random().toString(36).substring(2, 8) : null;
+        if (status === "มีลูกค้า") {
+          payload.session_token = Date.now().toString(36) + Math.random().toString(36).substring(2, 8);
+        } else if (status === "ว่าง") {
+          payload.session_token = null;
+        }
       }
 
       if (action === "changeStatus" && status === "รอชำระ") {
@@ -116,7 +131,10 @@ export default function TableStatus() {
         if (action === "startOrder") router.push(`/orders?table_id=${table.table_id}&token=${table.session_token || ''}`);
         else loadData();
       }
-    } catch (error) { console.error(error); }
+    } catch (error) {
+      console.error("Action Error:", error);
+      alert(`เกิดข้อผิดพลาด: ${error.message}`);
+    }
   };
 
   const handleConfirmTakeout = async () => {
