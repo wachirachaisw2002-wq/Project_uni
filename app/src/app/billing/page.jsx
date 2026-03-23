@@ -130,7 +130,6 @@ const createBill = async (billData) => {
   return res.json();
 };
 
-// --- เพิ่มฟังก์ชันพิมพ์ใบเสร็จ ---
 const handlePrintReceipt = (billData, itemsData) => {
   if (!billData || !itemsData) return;
   const storeName = "ร้านตำลืมผัว";
@@ -158,7 +157,7 @@ const handlePrintReceipt = (billData, itemsData) => {
       </head>
       <body>
         <div class="text-center font-bold text-xl mb-1">${storeName}</div>
-        <div class="text-center mb-2">ใบเสร็จรับเงิน / ใบกำกับภาษีอย่างย่อ</div>
+        <div class="text-center mb-2">ใบเสร็จรับเงิน</div>
         
         ${billData.bill_id ? `<div class="flex mb-1"><span>เลขที่บิล:</span> <span>#${billData.bill_id}</span></div>` : ''}
         <div class="flex mb-1"><span>วันที่:</span> <span>${format(new Date(), "dd/MM/yyyy HH:mm")}</span></div>

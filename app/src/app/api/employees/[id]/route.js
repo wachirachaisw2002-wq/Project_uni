@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import pool from "@/lib/db";
-import bcrypt from "bcryptjs"; // 🟢 1. Import bcryptjs
+import bcrypt from "bcryptjs";
 
 export async function GET(request, { params }) {
   try {
@@ -50,13 +50,12 @@ export async function PUT(request, { params }) {
       status, salary, id_card_number
     ];
 
-    // 🟢 2. ทำการ Hash รหัสผ่านใหม่เฉพาะเมื่อมีการส่งรหัสผ่านเข้ามา
     if (password && password.trim() !== "") {
       const salt = await bcrypt.genSalt(10);
       const hashedPassword = await bcrypt.hash(password, salt);
 
       sql += `, password=?`;
-      values.push(hashedPassword); // 🟢 3. push รหัสผ่านที่ Hash แล้วลงไป
+      values.push(hashedPassword); 
     }
 
     sql += ` WHERE employee_id = ?`;

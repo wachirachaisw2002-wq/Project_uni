@@ -59,7 +59,7 @@ export async function PUT(request, context) {
 
     if (action === "resetAll" || (tableId === 0 && action === "resetAll")) {
       await conn.query("UPDATE tables SET status = 'ว่าง', order_count = 0, group_id = NULL, session_token = NULL");
-      await conn.query("UPDATE orders SET paid = 1 WHERE paid = 0 AND order_type = 'DINE_IN'");
+      await conn.query("UPDATE orders SET paid = 1 WHERE paid = 0");
 
       await conn.commit();
       return NextResponse.json({ ok: true });

@@ -11,7 +11,7 @@ export async function GET() {
     const [takeaways] = await conn.query(`
       SELECT order_id, customer_name, customer_phone, total_price, created_at 
       FROM orders 
-      WHERE order_type = 'TAKEAWAY' AND paid = 0 
+      WHERE (order_type = 'takeout' OR order_type = 'TAKEAWAY') AND paid = 0 
       ORDER BY created_at DESC
     `);
 
@@ -27,6 +27,6 @@ export async function GET() {
       { status: 500 }
     );
   } finally {
-    conn.release();
+    if (conn) conn.release();
   }
 }

@@ -57,7 +57,7 @@ const handlePrintReceipt = (billData, itemsData) => {
       </head>
       <body>
         <div class="text-center font-bold text-xl mb-1">${storeName}</div>
-        <div class="text-center mb-2">ใบเสร็จรับเงิน / ใบกำกับภาษีอย่างย่อ</div>
+        <div class="text-center mb-2">ใบเสร็จรับเงิน</div>
         
         <div class="flex mb-1"><span>เลขที่บิล:</span> <span>#${billData.bill_id}</span></div>
         <div class="flex mb-1"><span>วันที่:</span> <span>${billData.dateOnly} ${billData.timeOnly}</span></div>

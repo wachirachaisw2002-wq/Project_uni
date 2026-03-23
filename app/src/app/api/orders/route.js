@@ -131,7 +131,6 @@ export async function GET(request) {
 export async function POST(request) {
   let conn;
   try {
-    // รับ session_token มาจาก Client
     const { table_number, items, type = 'dine_in', customerName = null, customerPhone = null, session_token } = await request.json();
 
     let tableNum = null;
@@ -163,7 +162,6 @@ export async function POST(request) {
 
     conn = await pool.getConnection();
 
-    // --- ส่วนที่เพิ่มใหม่: ตรวจสอบ Session Token และสถานะโต๊ะสำหรับทานที่ร้าน ---
     if (dbOrderType === 'DINE_IN') {
       const [tableData] = await conn.query(
         "SELECT status, session_token FROM tables WHERE table_id = ? OR number = ?",
@@ -182,13 +180,11 @@ export async function POST(request) {
         return NextResponse.json({ message: "โต๊ะนี้ไม่ได้เปิดใช้งาน หรือกำลังรอชำระเงิน" }, { status: 403 });
       }
 
-      // ถ้าโต๊ะมี Token แต่ค่าที่ส่งมาไม่ตรงกัน
       if (currentTable.session_token && currentTable.session_token !== session_token) {
         conn.release();
         return NextResponse.json({ message: "QR Code หมดอายุ หรือไม่ถูกต้อง กรุณาติดต่อพนักงาน" }, { status: 403 });
       }
     }
-    // ---------------------------------------------------------
 
     const menuIds = safeItems.map((i) => i.menu_id);
     if (menuIds.length > 0) {
@@ -270,7 +266,6 @@ export async function POST(request) {
 export async function PATCH(request) {
   let conn;
   try {
-    // รับ session_token เข้ามาตรวจสอบเช่นกัน (กรณีที่มีคนใช้ Endpoint นี้เพิ่มออเดอร์)
     const { table_number, items, session_token } = await request.json();
     const tableNum = Number(table_number);
 
@@ -285,7 +280,6 @@ export async function PATCH(request) {
 
     conn = await pool.getConnection();
 
-    // --- ตรวจสอบ Token ให้ PATCH ด้วย ป้องกันคนยิง API อ้อม ---
     const [tableData] = await conn.query(
       "SELECT status, session_token FROM tables WHERE table_id = ? OR number = ?",
       [tableNum, tableNum]
@@ -302,7 +296,6 @@ export async function PATCH(request) {
         return NextResponse.json({ message: "Token ไม่ถูกต้อง" }, { status: 403 });
       }
     }
-    // -----------------------------------------------------
 
     const menuIds = safeItems.map((i) => i.menu_id);
     if (menuIds.length > 0) {

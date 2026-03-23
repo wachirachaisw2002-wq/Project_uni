@@ -49,7 +49,7 @@ const MENU_ITEMS = [
   { 
     href: "/dashboard", 
     icon: <BarChart2 size={20} />, 
-    label: "สรุปยอดขาย", 
+    label: "รายงานยอดขาย", 
     allowedRoles: ["เจ้าของร้าน", "ผู้จัดการร้าน"] 
   },
   { 

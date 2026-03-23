@@ -6,8 +6,6 @@ export async function GET(request) {
     const { searchParams } = new URL(request.url);
     const employeeId = searchParams.get("employeeId");
     const month = searchParams.get("month"); 
-    const year = searchParams.get("year");
-
     let sql = `
       SELECT 
         w.id,
@@ -17,6 +15,10 @@ export async function GET(request) {
         w.latitude,
         w.longitude,
         w.check_in_photo,
+        w.type,
+        w.leave_type,
+        w.reason,
+        w.leave_status,
         e.name_th,
         e.nickname,
         e.position,

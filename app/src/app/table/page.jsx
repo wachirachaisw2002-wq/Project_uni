@@ -62,7 +62,6 @@ export default function TableStatus() {
     try {
       const data = await fetchTableData();
       let currentTables = data.tables || (Array.isArray(data) ? data : []);
-
       setTables(currentTables);
       setActiveTakeaways(data.takeaways || []);
     } catch (error) {
@@ -89,9 +88,7 @@ export default function TableStatus() {
             await updateTable(revertTableId, "changeStatus", { status: "มีลูกค้า" });
           }
           loadData();
-        } catch (e) {
-          console.error(e);
-        }
+        } catch (e) { console.error(e); }
       };
       doRevert();
     }
@@ -119,9 +116,7 @@ export default function TableStatus() {
       if (action === "changeStatus" && status === "รอชำระ") {
         if (isGrouped) {
           const tablesInGroup = tables.filter(t => t.group_id === table.group_id);
-          await Promise.all(
-            tablesInGroup.map(t => updateTable(t.table_id, "changeStatus", { status: "รอชำระ" }))
-          );
+          await Promise.all(tablesInGroup.map(t => updateTable(t.table_id, "changeStatus", { status: "รอชำระ" })));
         } else {
           await updateTable(table.table_id, "changeStatus", { status: "รอชำระ" });
         }
@@ -134,20 +129,55 @@ export default function TableStatus() {
           loadData();
         }
       }
-    } catch (error) {
-      console.error(error);
-    }
+    } catch (error) { console.error(error); }
   };
 
   const handleOpenTakeout = () => {
     setTakeoutName(""); setTakeoutPhone(""); setIsTakeoutOpen(true);
   };
 
-  const handleConfirmTakeout = () => {
+  const handleConfirmTakeout = async () => {
     if (!takeoutName.trim()) return alert("กรุณาระบุชื่อลูกค้า");
     setIsTakeoutOpen(false);
-    const params = new URLSearchParams({ type: 'takeout', customerName: takeoutName, customerPhone: takeoutPhone });
-    router.push(`/orders?${params.toString()}`);
+
+    try {
+      const res = await fetch("/api/takeaway", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ customerName: takeoutName, customerPhone: takeoutPhone })
+      });
+
+      if (res.ok) {
+        setTimeout(() => { loadData(); }, 500);
+        setTakeoutName("");
+        setTakeoutPhone("");
+      } else {
+        const err = await res.json();
+        alert(err.error || "เกิดข้อผิดพลาดในการสร้างบิล");
+      }
+    } catch (error) {
+      alert("ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้");
+    }
+  };
+
+  const handleCancelTakeaway = async (orderId, customerName) => {
+    if (!confirm(`ต้องการยกเลิกบิลสั่งกลับบ้านของ: ${customerName} ใช่หรือไม่?`)) return;
+    try {
+      const res = await fetch("/api/takeaway", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ orderId })
+      });
+
+      if (res.ok) {
+        loadData();
+      } else {
+        const err = await res.json();
+        alert(err.error || "เกิดข้อผิดพลาดในการยกเลิกบิล");
+      }
+    } catch (error) {
+      alert("ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้");
+    }
   };
 
   const handleUnmerge = async (table) => {
@@ -182,13 +212,14 @@ export default function TableStatus() {
   };
 
   const handleResetAllTables = async () => {
-    if (!confirm("รีเซ็ตโต๊ะทั้งหมดเป็นว่าง?")) return;
+    if (!confirm("ยืนยันการรีเซ็ต? โต๊ะและบิลสั่งกลับบ้านทั้งหมดจะถูกล้าง")) return;
     try {
-      const activeTables = tables.filter(t => (t.status || "").trim() !== "ว่าง");
-      // ล้าง token ทั้งหมดด้วย
-      await Promise.all(activeTables.map(t => updateTable(t.table_id, "changeStatus", { status: "ว่าง", session_token: null })));
+      await updateTable(0, "resetAll");
       loadData();
-    } catch (err) { console.error(err); }
+    } catch (err) { 
+      console.error(err); 
+      alert("เกิดข้อผิดพลาดในการรีเซ็ตระบบ");
+    }
   };
 
   const getLinkedTables = (currentTable) => {
@@ -205,17 +236,25 @@ export default function TableStatus() {
 
   const handlePrintQR = () => {
     if (!qrTable) return;
-
     const baseUrl = getCurrentBaseUrl();
-    const qrUrl = `${baseUrl}/orders?table_id=${qrTable.table_id}&token=${qrTable.session_token || ''}`;
-    const qrImageApi = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(qrUrl)}`;
+    let qrUrl = '';
+    let titleStr = '';
 
+    if (qrTable.isTakeout) {
+      qrUrl = `${baseUrl}/orders?type=takeout&customerName=${encodeURIComponent(qrTable.customer_name)}`;
+      titleStr = `สั่งกลับบ้าน: ${qrTable.customer_name}`;
+    } else {
+      qrUrl = `${baseUrl}/orders?table_id=${qrTable.table_id}&token=${qrTable.session_token || ''}`;
+      titleStr = `โต๊ะ ${qrTable.number}`;
+    }
+
+    const qrImageApi = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(qrUrl)}`;
     const printWindow = window.open('', '_blank', 'width=400,height=500');
     if (printWindow) {
       printWindow.document.write(`
         <html>
           <head>
-            <title>QR โต๊ะ ${qrTable.number}</title>
+            <title>QR ${titleStr}</title>
             <style>
               body { text-align: center; font-family: sans-serif; margin-top: 30px; }
               h2 { font-size: 22px; margin-bottom: 5px; }
@@ -227,7 +266,7 @@ export default function TableStatus() {
           </head>
           <body>
             <h2>สแกนสั่งอาหาร</h2>
-            <h1>โต๊ะ ${qrTable.number}</h1>
+            <h1>${titleStr}</h1>
             <img src="${qrImageApi}" alt="QR" />
             <p>ร้านตำลืมผัว</p>
             <button class="no-print" onclick="window.print()" style="margin-top: 20px; padding: 10px 20px; font-size: 16px; cursor: pointer;">พิมพ์ QR Code</button>
@@ -240,8 +279,23 @@ export default function TableStatus() {
 
   const getQrImageSrc = () => {
     const baseUrl = getCurrentBaseUrl();
-    const qrUrl = `${baseUrl}/orders?table_id=${qrTable?.table_id}&token=${qrTable?.session_token || ''}`;
+    let qrUrl = '';
+    if (qrTable?.isTakeout) {
+      qrUrl = `${baseUrl}/orders?type=takeout&customerName=${encodeURIComponent(qrTable.customer_name)}`;
+    } else {
+      qrUrl = `${baseUrl}/orders?table_id=${qrTable?.table_id}&token=${qrTable?.session_token || ''}`;
+    }
     return `https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(qrUrl)}`;
+  };
+
+  const getThaiTime = (dateString) => {
+    if (!dateString) return "";
+    const dateObj = new Date(dateString);
+    return dateObj.toLocaleTimeString('th-TH', { 
+      hour: '2-digit', 
+      minute: '2-digit', 
+      timeZone: 'Asia/Bangkok' 
+    });
   };
 
   return (
@@ -270,14 +324,65 @@ export default function TableStatus() {
                 <Card key={`takeout-${takeout.order_id}`} className="flex flex-col border-t-4 border-t-purple-500 bg-white dark:bg-black dark:border-zinc-900 shadow-sm">
                   <CardHeader className="pb-3 flex flex-row items-center justify-between border-b dark:border-zinc-900">
                     <div className="flex items-center gap-2 overflow-hidden">
-                      <div className="p-2 bg-purple-50 rounded-lg dark:bg-purple-900/20"><Bike className="w-5 h-5 text-purple-600" /></div>
-                      <div className="flex flex-col overflow-hidden"><CardTitle className="text-base font-bold truncate dark:text-zinc-50">{takeout.customer_name}</CardTitle><span className="text-[10px] text-gray-400 flex items-center gap-1"><Clock className="w-3 h-3" /> {new Date(takeout.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span></div>
+                      <div className="p-2 bg-gray-50 dark:bg-zinc-900 rounded-lg">
+                        <ShoppingBag className="w-5 h-5 text-gray-500" />
+                      </div>
+                      <div className="flex flex-col overflow-hidden">
+                        <CardTitle className="text-lg font-bold dark:text-zinc-50 truncate max-w-[120px]">
+                          {takeout.customer_name}
+                        </CardTitle>
+                      </div>
                     </div>
-                    <Badge className="bg-purple-100 text-purple-700 dark:bg-purple-900/50 dark:text-purple-300">{Number(takeout.total_price).toLocaleString()} ฿</Badge>
+                    <div className="flex items-center gap-1.5">
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Button
+                              variant="ghost" size="icon"
+                              className="h-7 w-7 text-purple-500 hover:bg-purple-50 dark:text-purple-400 dark:hover:bg-purple-900/30"
+                              onClick={() => { setQrTable({ ...takeout, isTakeout: true }); setQrModalOpen(true); }}
+                            >
+                              <QrCode className="h-4 w-4" />
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent>สแกนสั่งอาหาร</TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
+                      <Badge className="bg-purple-500 text-white border-none">
+                        {Number(takeout.total_price).toLocaleString()} ฿
+                      </Badge>
+                    </div>
                   </CardHeader>
-                  <CardFooter className="p-4 grid grid-cols-2 gap-2">
-                    <Button variant="outline" size="sm" onClick={() => router.push(`/orders?type=takeout&customerName=${takeout.customer_name}`)}>สั่งอาหาร</Button>
-                    <Button size="sm" className="bg-purple-600 text-white hover:bg-purple-700" onClick={() => router.push(`/billing?type=takeout&customerName=${takeout.customer_name}`)}>เช็คบิล</Button>
+
+                  <CardContent className="flex-1 py-4 flex flex-col items-center justify-center">
+                    <div className="w-full text-center">
+                      <ShoppingBag className="w-8 h-8 mx-auto mb-1 text-purple-300" />
+                      <span className="text-[11px] text-gray-400 flex items-center justify-center gap-1 mt-2">
+                        <Clock className="w-3.5 h-3.5" /> เวลา {getThaiTime(takeout.created_at)}
+                      </span>
+                    </div>
+                  </CardContent>
+
+                  <CardFooter className="p-4 flex flex-col gap-2">
+                    <div className="w-full space-y-2">
+                      <div className="grid grid-cols-2 gap-2">
+                        <Button variant="outline" size="sm" onClick={() => router.push(`/orders?type=takeout&customerName=${takeout.customer_name}`)}>
+                          <PlusCircle className="mr-1 h-3 w-3 text-purple-500" /> สั่งอาหาร
+                        </Button>
+                        <Button size="sm" className="bg-purple-600 text-white hover:bg-purple-700" onClick={() => router.push(`/billing?type=takeout&customerName=${takeout.customer_name}`)}>
+                          <Receipt className="mr-1 h-3 w-3" /> เช็คบิล
+                        </Button>
+                      </div>
+                      
+                      <Button 
+                        size="sm" 
+                        variant="outline" 
+                        className="w-full text-red-500 border-red-200 hover:bg-red-50 hover:text-red-600 dark:border-red-900/30 dark:hover:bg-red-950/30" 
+                        onClick={() => handleCancelTakeaway(takeout.order_id, takeout.customer_name)}
+                      >
+                        <XCircle className="mr-1 h-3 w-3" /> ยกเลิกบิล
+                      </Button>
+                    </div>
                   </CardFooter>
                 </Card>
               ))}
@@ -309,10 +414,9 @@ export default function TableStatus() {
                             <Tooltip>
                               <TooltipTrigger asChild>
                                 <Button
-                                  variant="ghost"
-                                  size="icon"
+                                  variant="ghost" size="icon"
                                   className="h-7 w-7 text-blue-500 hover:bg-blue-50 dark:text-blue-400 dark:hover:bg-blue-900/30"
-                                  onClick={() => { setQrTable(table); setQrModalOpen(true); }}
+                                  onClick={() => { setQrTable({ ...table, isTakeout: false }); setQrModalOpen(true); }}
                                 >
                                   <QrCode className="h-4 w-4" />
                                 </Button>
@@ -350,12 +454,9 @@ export default function TableStatus() {
 
                       {(displayStatus === "มีลูกค้า" || displayStatus === "รอชำระ") && (
                         <div className="w-full space-y-2">
-
                           <div className={`grid ${hasOrders || isLocked ? 'grid-cols-2' : 'grid-cols-1'} gap-2`}>
                             <Button
-                              variant="outline"
-                              size="sm"
-                              disabled={isLocked}
+                              variant="outline" size="sm" disabled={isLocked}
                               onClick={() => router.push(`/orders?table_id=${table.table_id}&token=${table.session_token || ''}`)}
                               className={isLocked ? "opacity-40" : ""}
                             >
@@ -363,8 +464,7 @@ export default function TableStatus() {
                             </Button>
                             {(hasOrders || isLocked) ? (
                               <Button
-                                size="sm"
-                                disabled={isLocked}
+                                size="sm" disabled={isLocked}
                                 className={`text-white ${isLocked ? "bg-orange-300 opacity-50 cursor-not-allowed" : "bg-orange-600 hover:bg-orange-700"}`}
                                 onClick={() => handleAction(table, "changeStatus", "รอชำระ")}
                               >
@@ -372,8 +472,7 @@ export default function TableStatus() {
                               </Button>
                             ) : (
                               <Button
-                                size="sm"
-                                variant="outline"
+                                size="sm" variant="outline"
                                 className="text-red-500 border-red-200 hover:bg-red-50 hover:text-red-600 dark:border-red-900/30 dark:hover:bg-red-950/30"
                                 onClick={() => {
                                   if (confirm(`ต้องการยกเลิกการเปิดโต๊ะ ${table.number} และเปลี่ยนเป็นโต๊ะว่าง ใช่หรือไม่?`)) {
@@ -388,18 +487,14 @@ export default function TableStatus() {
 
                           <div className={`grid ${isMerged ? 'grid-cols-3' : 'grid-cols-2'} gap-2`}>
                             <Button
-                              variant="secondary"
-                              size="sm"
-                              disabled={isLocked}
+                              variant="secondary" size="sm" disabled={isLocked}
                               className={`h-7 text-[10px] ${isLocked ? "opacity-40" : ""}`}
                               onClick={() => { setSelectedTable(table); setTargetTableId(""); setIsMoveOpen(true); }}
                             >
                               <ArrowRightLeft className="mr-1 h-3 w-3" /> ย้าย
                             </Button>
                             <Button
-                              variant="secondary"
-                              size="sm"
-                              disabled={isLocked}
+                              variant="secondary" size="sm" disabled={isLocked}
                               className={`h-7 text-[10px] ${isLocked ? "opacity-40" : ""}`}
                               onClick={() => { setSelectedTable(table); setMergeTargetId(""); setIsMergeOpen(true); }}
                             >
@@ -408,9 +503,7 @@ export default function TableStatus() {
 
                             {isMerged && (
                               <Button
-                                variant="secondary"
-                                size="sm"
-                                disabled={isLocked}
+                                variant="secondary" size="sm" disabled={isLocked}
                                 className={`h-7 text-[10px] ${isLocked ? "opacity-40" : "text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950/30 dark:text-red-400"}`}
                                 onClick={() => handleUnmerge(table)}
                               >
@@ -443,7 +536,7 @@ export default function TableStatus() {
               <div className="space-y-1"><Label>ชื่อลูกค้า*</Label><Input value={takeoutName} onChange={(e) => setTakeoutName(e.target.value)} /></div>
               <div className="space-y-1"><Label>เบอร์โทรศัพท์</Label><Input type="tel" value={takeoutPhone} onChange={(e) => setTakeoutPhone(e.target.value)} onKeyDown={(e) => e.key === "Enter" && handleConfirmTakeout()} /></div>
             </div>
-            <DialogFooter><Button onClick={handleConfirmTakeout} disabled={!takeoutName.trim()} className="w-full bg-purple-600 text-white">เปิดบิลกลับบ้าน</Button></DialogFooter>
+            <DialogFooter><Button onClick={handleConfirmTakeout} disabled={!takeoutName.trim()} className="w-full bg-purple-600 text-white hover:bg-purple-700">เปิดบิลกลับบ้าน</Button></DialogFooter>
           </DialogContent>
         </Dialog>
 
@@ -467,28 +560,22 @@ export default function TableStatus() {
           <DialogContent className="sm:max-w-sm dark:bg-black dark:border-zinc-900 rounded-3xl">
             <DialogHeader>
               <DialogTitle className="text-center text-xl text-blue-600 dark:text-blue-400 font-bold">QR Code สั่งอาหาร</DialogTitle>
-              <DialogDescription className="text-center text-zinc-500">สำหรับโต๊ะ {qrTable?.number}</DialogDescription>
+              <DialogDescription className="text-center text-zinc-500">
+                {qrTable?.isTakeout ? `สั่งกลับบ้าน: ${qrTable?.customer_name}` : `สำหรับโต๊ะ ${qrTable?.number}`}
+              </DialogDescription>
             </DialogHeader>
 
             <div className="flex flex-col items-center justify-center py-4 space-y-4">
               <div className="bg-white p-4 rounded-3xl shadow-sm border-2 border-slate-100 dark:border-zinc-800">
-                <img
-                  src={getQrImageSrc()}
-                  alt={`QR โต๊ะ ${qrTable?.number}`}
-                  className="w-48 h-48 object-contain"
-                />
+                <img src={getQrImageSrc()} alt={qrTable?.isTakeout ? `QR กลับบ้าน: ${qrTable?.customer_name}` : `QR โต๊ะ ${qrTable?.number}`} className="w-48 h-48 object-contain" />
               </div>
               <p className="text-xs font-medium text-zinc-500 bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 px-4 py-2 rounded-full text-center">
                 ให้ลูกค้าสแกนเพื่อเข้าสู่เมนูสั่งอาหาร
               </p>
             </div>
             <DialogFooter className="sm:justify-center flex-row gap-2 pt-0">
-              <Button variant="outline" className="flex-1 h-12 rounded-xl font-bold" onClick={() => setQrModalOpen(false)}>
-                ปิด
-              </Button>
-              <Button className="flex-1 h-12 rounded-xl font-bold bg-blue-600 hover:bg-blue-700 text-white" onClick={handlePrintQR}>
-                <Printer className="w-4 h-4 mr-2" /> พิมพ์ QR
-              </Button>
+              <Button variant="outline" className="flex-1 h-12 rounded-xl font-bold" onClick={() => setQrModalOpen(false)}>ปิด</Button>
+              <Button className="flex-1 h-12 rounded-xl font-bold bg-blue-600 hover:bg-blue-700 text-white" onClick={handlePrintQR}><Printer className="w-4 h-4 mr-2" /> พิมพ์ QR</Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
