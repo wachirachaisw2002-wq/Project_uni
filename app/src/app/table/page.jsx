@@ -299,7 +299,7 @@ export default function TableStatus() {
 
                     <CardFooter className="p-4 flex flex-col gap-2">
                       {displayStatus === "ว่าง" && (
-                        <Button className="w-full bg-gray-900 text-white dark:bg-zinc-100 dark:text-black" onClick={() => handleAction(table, "changeStatus", "มีลูกค้า")}><Utensils className="mr-2 h-4 w-4" /> เปิดโต๊ะ</Button>
+                        <Button className="w-full bg-gray-900 text-white bg-[#FF5722] hover:bg-[#E64A19]k" onClick={() => handleAction(table, "changeStatus", "มีลูกค้า")}><Utensils className="mr-2 h-4 w-4" /> เปิดโต๊ะ</Button>
                       )}
                       {(displayStatus === "มีลูกค้า" || displayStatus === "รอชำระ") && (
                         <div className="w-full space-y-2">
@@ -313,7 +313,7 @@ export default function TableStatus() {
                               </Button>
                             ) : (
                               <Button size="sm" variant="outline" className="text-red-500 border-red-200 hover:bg-red-50 hover:text-red-600 dark:border-red-900/30 dark:hover:bg-red-950/30" onClick={() => confirm(`ต้องการยกเลิกการเปิดโต๊ะ ${table.number} ใช่หรือไม่?`) && handleAction(table, "changeStatus", "ว่าง")}>
-                                <XCircle className="mr-1 h-3 w-3" /> ปิดโต๊ะ
+                                <XCircle className="mr-1 h-3 w-3" /> เปิดโต๊ะ
                               </Button>
                             )}
                           </div>
