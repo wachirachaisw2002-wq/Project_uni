@@ -21,6 +21,7 @@ import {
   MessageSquare, Loader2, Printer, Image as ImageIcon
 } from "lucide-react";
 
+// --- Helper Functions ---
 const getPaymentBadge = (type) => (
   <Badge className={`shadow-none ${type === "เงินสด" ? "bg-emerald-500/10 text-emerald-500 border-emerald-500/20" : "bg-blue-500/10 text-blue-500 border-blue-500/20"}`}>
     {type}
@@ -31,7 +32,7 @@ const handlePrintReceipt = (bill, items) => {
   if (!bill || !items || bill.status === 'VOID') return;
 
   const storeName = "ร้านตำลืมผัว";
-  const taxId = "TAX ID 0107567000414 โทร.0857441773";
+  const taxId = "TAX ID : 0105567000413 โทร.0857441773";
 
   const itemRows = items.map(i => {
     const name = i.name_th || i.menu_name;
@@ -60,14 +61,14 @@ const handlePrintReceipt = (bill, items) => {
       <body>
         <div class="bold mb-1">${storeName}</div>
         <div class="mb-1 text-center" style="text-align: left; font-size: 12px;">${taxId}</div>
-        <div class="mb-1" style="font-size: 12px;">RID. E${String(bill.bill_id).padStart(14, '0')}</div>
+        <div class="mb-1" style="font-size: 12px;">RID. F${String(bill.bill_id).padStart(14, '0')}</div>
         <div class="divider"></div>
         ${itemRows}
         <div class="divider"></div>
         <div class="flex-between bold mb-1"><span>ยอดรวม</span><span>${Number(bill.total_price).toFixed(2)}</span></div>
         <div class="flex-between mb-1"><span>${bill.payment_type}</span><span>${Number(bill.total_price).toFixed(2)}</span></div>
         <div class="divider mt-4" style="margin-top: 24px;"></div>
-        <div class="text-center" style="font-size: 12px;">TAX INVOICE (ABB)/RECEIPT(VAT INCLUDED)</div>
+        <div class="text-center" style="font-size: 12px;">ใบเสร็จรับเงิน/ใบกำกับภาษี</div>
         <div class="text-center" style="font-size: 12px;">${bill.dateOnly} ${bill.timeOnly} CSH:${bill.cashierName}</div>
         <div class="action-buttons no-print">
           <button class="btn-print" onclick="window.print()">สั่งพิมพ์</button>
@@ -84,6 +85,7 @@ const handlePrintReceipt = (bill, items) => {
     alert("กรุณาอนุญาต Pop-ups เพื่อพิมพ์ใบเสร็จ");
   }
 };
+
 export default function Page() {
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);

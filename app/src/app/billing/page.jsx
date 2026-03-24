@@ -136,7 +136,7 @@ const handlePrintReceipt = (billData, itemsData) => {
         <div class="flex-between mb-1"><span>รับเงินมา</span><span>${Number(billData.cashReceived).toFixed(2)}</span></div>
         <div class="flex-between mb-1"><span>เงินทอน</span><span>${Number(billData.changeAmount).toFixed(2)}</span></div>
         <div class="divider mt-4" style="margin-top: 24px;"></div>
-        <div class="text-center" style="font-size: 12px;">TAX INVOICE (ABB)/RECEIPT(VAT INCLUDED)</div>
+        <div class="text-center" style="font-size: 12px;">ใบเสร็จรับเงิน/ใบกำกับภาษี</div>
         <div class="text-center" style="font-size: 12px;">${format(new Date(), "dd/MM/yyyy HH:mm")} CSH:${billData.cashierName}</div>
         <div class="action-buttons no-print">
           <button class="btn-print" onclick="window.print()">สั่งพิมพ์</button>
