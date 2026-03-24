@@ -11,7 +11,7 @@ const BRAND_COLOR = "#FF5722";
 const handlePrintReceipt = (billData, itemsData) => {
   if (!billData || !itemsData) return;
   const storeName = "ร้านตำลืมผัว";
-  const taxId = "TAX ID 0107567000414 โทร.0857441773";
+  const taxId = "โทร.0857441773";
 
   const itemRows = itemsData.map(i => {
     const name = i.name_th || i.name;

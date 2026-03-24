@@ -32,7 +32,7 @@ const handlePrintReceipt = (bill, items) => {
   if (!bill || !items || bill.status === 'VOID') return;
 
   const storeName = "ร้านตำลืมผัว";
-  const taxId = "TAX ID : 0105567000413 โทร.0857441773";
+  const taxId = "โทร.0857441773";
 
   const itemRows = items.map(i => {
     const name = i.name_th || i.menu_name;
