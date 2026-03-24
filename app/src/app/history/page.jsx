@@ -21,33 +21,45 @@ import {
   MessageSquare, Loader2, Printer, Image as ImageIcon
 } from "lucide-react";
 
-// --- Helper Functions ---
 const getPaymentBadge = (type) => (
   <Badge className={`shadow-none ${type === "เงินสด" ? "bg-emerald-500/10 text-emerald-500 border-emerald-500/20" : "bg-blue-500/10 text-blue-500 border-blue-500/20"}`}>
     {type}
   </Badge>
 );
 
-const handlePrintReceipt = (bill, items) => {
-  if (!bill || !items || bill.status === 'VOID') return;
+const handlePrintReceipt = (billData, itemsData) => {
+  if (!billData || !itemsData) return;
 
   const storeName = "ร้านตำลืมผัว";
   const taxId = "โทร.0857441773";
 
-  const itemRows = items.map(i => {
-    const name = i.name_th || i.menu_name;
+  const billId = billData.bill_id || billData.id;
+  const totalPrice = Number(billData.totalPrice || billData.total_price || 0);
+  const cashReceived = Number(billData.cashReceived || billData.cash_received || 0);
+  const changeAmount = Number(billData.changeAmount || billData.change_amount || 0);
+  const paymentType = billData.paymentType || billData.payment_type || "เงินสด";
+  const cashierName = billData.cashierName || billData.cashier_name || "Staff";
+  
+  const displayDate = billData.created_at 
+    ? new Date(billData.created_at).toLocaleString('th-TH', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })
+    : new Date().toLocaleString('th-TH', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+
+  const itemRows = itemsData.map(i => {
+    const name = i.name_th || i.name || i.menu_name;
     const qty = Number(i.qty || i.quantity || 1);
-    const total = (qty * Number(i.price)).toFixed(2);
+    const price = Number(i.price || 0);
+    const total = (qty * price).toFixed(2);
     const displayName = qty > 1 ? `${name} (x${qty})` : name;
+    
     return `<div class="flex-between mb-1"><span>${displayName}</span><span>${total}</span></div>`;
   }).join('');
 
   const receiptHtml = `
     <html>
       <head>
-        <title>ใบเสร็จรับเงิน #${bill.bill_id}</title>
+        <title>ใบเสร็จรับเงิน ${billId ? '#' + billId : ''}</title>
         <style>
-          @page { margin: 0; size: 80mm auto; } 
+          @page { margin: 0; size: 80mm auto; }
           body { font-family: 'Courier New', Courier, monospace; width: 300px; margin: 0 auto; padding: 20px 10px; font-size: 14px; color: #000; line-height: 1.4; }
           .text-center { text-align: center; } .flex-between { display: flex; justify-content: space-between; }
           .bold { font-weight: bold; } .divider { border-top: 1px dashed #000; margin: 10px 0; }
@@ -55,21 +67,24 @@ const handlePrintReceipt = (bill, items) => {
           @media print { .no-print { display: none !important; } }
           .action-buttons { text-align: center; margin-top: 30px; padding-top: 15px; border-top: 1px dashed #ccc; display: flex; gap: 10px; justify-content: center; }
           .btn-print { flex: 1; background: #10b981; color: #fff; border: none; padding: 10px; border-radius: 8px; font-size: 14px; cursor: pointer; font-weight: bold; }
+          .btn-print:hover { background: #059669; }
           .btn-close { flex: 1; background: #f4f4f5; color: #3f3f46; border: 1px solid #e4e4e7; padding: 10px; border-radius: 8px; font-size: 14px; cursor: pointer; font-weight: bold; }
         </style>
       </head>
       <body>
         <div class="bold mb-1">${storeName}</div>
         <div class="mb-1 text-center" style="text-align: left; font-size: 12px;">${taxId}</div>
-        <div class="mb-1" style="font-size: 12px;">RID. F${String(bill.bill_id).padStart(14, '0')}</div>
+        ${billId ? `<div class="mb-1" style="font-size: 12px;">RID. E${String(billId).padStart(14, '0')}</div>` : ''}
         <div class="divider"></div>
         ${itemRows}
         <div class="divider"></div>
-        <div class="flex-between bold mb-1"><span>ยอดรวม</span><span>${Number(bill.total_price).toFixed(2)}</span></div>
-        <div class="flex-between mb-1"><span>${bill.payment_type}</span><span>${Number(bill.total_price).toFixed(2)}</span></div>
+        <div class="flex-between bold mb-1"><span>ยอดรวมทั้งสิ้น</span><span>${totalPrice.toFixed(2)}</span></div>
+        <div class="flex-between mb-1"><span>ชำระโดย: ${paymentType}</span><span>${totalPrice.toFixed(2)}</span></div>
+        <div class="flex-between mb-1"><span>รับเงินมา</span><span>${cashReceived.toFixed(2)}</span></div>
+        <div class="flex-between mb-1"><span>เงินทอน</span><span>${changeAmount.toFixed(2)}</span></div>
         <div class="divider mt-4" style="margin-top: 24px;"></div>
         <div class="text-center" style="font-size: 12px;">ใบเสร็จรับเงิน/ใบกำกับภาษี</div>
-        <div class="text-center" style="font-size: 12px;">${bill.dateOnly} ${bill.timeOnly} CSH:${bill.cashierName}</div>
+        <div class="text-center" style="font-size: 12px;">${displayDate} CSH:${cashierName}</div>
         <div class="action-buttons no-print">
           <button class="btn-print" onclick="window.print()">สั่งพิมพ์</button>
           <button class="btn-close" onclick="window.close()">ปิด</button>
@@ -78,11 +93,11 @@ const handlePrintReceipt = (bill, items) => {
     </html>`;
 
   const printWindow = window.open('', '_blank', 'width=400,height=600');
-  if (printWindow) {
-    printWindow.document.write(receiptHtml);
-    printWindow.document.close();
+  if (printWindow) { 
+    printWindow.document.write(receiptHtml); 
+    printWindow.document.close(); 
   } else {
-    alert("กรุณาอนุญาต Pop-ups เพื่อพิมพ์ใบเสร็จ");
+    alert("กรุณาอนุญาต Pop-ups สำหรับเว็บไซต์นี้เพื่อพิมพ์ใบเสร็จ");
   }
 };
 
