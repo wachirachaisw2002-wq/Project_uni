@@ -46,7 +46,7 @@ const generateQrData = (table) => {
   const baseUrl = getCurrentBaseUrl();
   const isTakeout = table?.isTakeout;
   const qrUrl = isTakeout
-    ? `${baseUrl}/orders?type=takeout&customerName=${encodeURIComponent(table.customer_name)}`
+    ? `${baseUrl}/orders?type=takeout&token=${table?.session_token || ''}&customerName=${encodeURIComponent(table.customer_name)}`
     : `${baseUrl}/orders?table_id=${table?.table_id}&token=${table?.session_token || ''}`;
   const title = isTakeout ? `สั่งกลับบ้าน: ${table.customer_name}` : `โต๊ะ ${table?.number}`;
   const imgSrc = `https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(qrUrl)}`;
@@ -313,7 +313,7 @@ export default function TableStatus() {
                               </Button>
                             ) : (
                               <Button size="sm" variant="outline" className="text-red-500 border-red-200 hover:bg-red-50 hover:text-red-600 dark:border-red-900/30 dark:hover:bg-red-950/30" onClick={() => confirm(`ต้องการยกเลิกการเปิดโต๊ะ ${table.number} ใช่หรือไม่?`) && handleAction(table, "changeStatus", "ว่าง")}>
-                                <XCircle className="mr-1 h-3 w-3" /> เปิดโต๊ะ
+                                <XCircle className="mr-1 h-3 w-3" /> ปิดโต๊ะ
                               </Button>
                             )}
                           </div>

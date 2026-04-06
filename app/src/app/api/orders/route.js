@@ -131,16 +131,14 @@ export async function GET(request) {
 export async function POST(request) {
   let conn;
   try {
-    const { table_number, items, type = 'dine_in', customerName = null, customerPhone = null, session_token } = await request.json();
+    // รับ session_token มาด้วย
+    let { table_number, items, type = 'dine_in', customerName = null, customerPhone = null, session_token } = await request.json();
 
     let tableNum = null;
     let dbOrderType = 'DINE_IN';
 
     if (type === 'takeout') {
       dbOrderType = 'TAKEAWAY';
-      if (!customerName || customerName.trim() === "") {
-        return NextResponse.json({ message: "กรุณาระบุชื่อลูกค้า" }, { status: 400 });
-      }
       tableNum = 0;
     } else {
       dbOrderType = 'DINE_IN';
@@ -162,6 +160,9 @@ export async function POST(request) {
 
     conn = await pool.getConnection();
 
+    // ------------------------------------------------------------------
+    // ส่วนที่ 1: ตรวจสอบความถูกต้องของ Token ก่อนอนุญาตให้สั่งอาหาร
+    // ------------------------------------------------------------------
     if (dbOrderType === 'DINE_IN') {
       const [tableData] = await conn.query(
         "SELECT status, session_token FROM tables WHERE table_id = ? OR number = ?",
@@ -174,17 +175,42 @@ export async function POST(request) {
       }
 
       const currentTable = tableData[0];
-
       if (currentTable.status !== "มีลูกค้า") {
         conn.release();
         return NextResponse.json({ message: "โต๊ะนี้ไม่ได้เปิดใช้งาน หรือกำลังรอชำระเงิน" }, { status: 403 });
       }
-
       if (currentTable.session_token && currentTable.session_token !== session_token) {
         conn.release();
         return NextResponse.json({ message: "QR Code หมดอายุ หรือไม่ถูกต้อง กรุณาติดต่อพนักงาน" }, { status: 403 });
       }
     }
+    // 👇👇 [ส่วนที่ต้องเพิ่ม] ตรวจสอบ Token ของสั่งกลับบ้าน 👇👇
+    else if (dbOrderType === 'TAKEAWAY') {
+      if (!session_token) {
+        conn.release();
+        return NextResponse.json({ message: "ไม่พบข้อมูลยืนยันตัวตน (Token) กรุณาสแกน QR Code ใหม่อีกครั้ง" }, { status: 403 });
+      }
+
+      const [takeawayData] = await conn.query(
+        "SELECT status, customer_name, customer_phone FROM takeaways WHERE session_token = ?",
+        [session_token]
+      );
+
+      if (takeawayData.length === 0) {
+        conn.release();
+        return NextResponse.json({ message: "QR Code ไม่ถูกต้อง หรือไม่พบข้อมูลในระบบ" }, { status: 404 });
+      }
+
+      if (takeawayData[0].status !== "ACTIVE") {
+        conn.release();
+        return NextResponse.json({ message: "บิลนี้ถูกปิดการขาย หรือหมดอายุไปแล้ว" }, { status: 403 });
+      }
+
+      // บังคับใช้ชื่อและเบอร์โทรที่ผูกกับ Token นี้ (ป้องกันคนแอบแก้ข้อมูลตอนยิง API)
+      customerName = takeawayData[0].customer_name;
+      customerPhone = takeawayData[0].customer_phone;
+    }
+    // ------------------------------------------------------------------
 
     const menuIds = safeItems.map((i) => i.menu_id);
     if (menuIds.length > 0) {

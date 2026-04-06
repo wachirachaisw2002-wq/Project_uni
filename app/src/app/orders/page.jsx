@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-
+import { Search, ShoppingCart, Plus, Minus, UtensilsCrossed, AlertCircle, Loader2, Trash2, Ban } from "lucide-react";
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 
@@ -21,8 +21,12 @@ export default function OrderPage() {
   const selectedTable = tableParam || "";
   const token = searchParams.get("token") || "";
   const orderType = searchParams.get("type");
-  const customerName = searchParams.get("customerName");
-  const customerPhone = searchParams.get("customerPhone");
+
+  // สร้าง State สำหรับเก็บข้อมูลลูกค้าที่ดึงมาจาก Database
+  const [customerInfo, setCustomerInfo] = useState({
+    name: searchParams.get("customerName") || "",
+    phone: searchParams.get("customerPhone") || ""
+  });
 
   const [menus, setMenus] = useState([]);
   const [searchQuery, setSearchQuery] = useState("");
@@ -56,6 +60,7 @@ export default function OrderPage() {
         setIsLoading(true);
         setAuthError(null);
 
+        // 1. ตรวจสอบกรณี สั่งทานที่ร้าน (Dine-in)
         if (selectedTable && orderType !== 'takeout') {
           const resTable = await fetch("/api/tables", { cache: "no-store" });
           if (!resTable.ok) throw new Error("Failed to fetch tables");
@@ -66,7 +71,28 @@ export default function OrderPage() {
           if (currentTable.status !== "มีลูกค้า") return setAuthError("ไม่สามารถสั่งอาหารได้ โต๊ะนี้อาจกำลังรอชำระเงิน หรือปิดโต๊ะไปแล้ว");
           if (currentTable.session_token && currentTable.session_token !== token) return setAuthError("QR Code นี้หมดอายุแล้ว หรือไม่ถูกต้อง กรุณาติดต่อพนักงาน");
         }
+        // 2. ตรวจสอบกรณี สั่งกลับบ้าน (Takeout) โดยเช็คจาก session_token
+        else if (orderType === 'takeout') {
+          if (!token) return setAuthError("ไม่พบ Token สำหรับการสั่งกลับบ้าน (QR Code ไม่สมบูรณ์)");
 
+          const resTakeaway = await fetch("/api/takeaway", { cache: "no-store" });
+          if (!resTakeaway.ok) throw new Error("Failed to fetch takeaways");
+
+          const takeawayData = await resTakeaway.json();
+          const takeawaysArray = takeawayData.takeaways || (Array.isArray(takeawayData) ? takeawayData : []);
+          const currentTakeaway = takeawaysArray.find(t => String(t.session_token) === String(token));
+
+          if (!currentTakeaway) return setAuthError("ไม่พบข้อมูลการสั่งกลับบ้านในระบบ หรือ QR Code ไม่ถูกต้อง");
+          if (currentTakeaway.status !== "ACTIVE") return setAuthError("รายการสั่งกลับบ้านนี้หมดอายุ หรือถูกปิดการขายไปแล้ว");
+
+          // ดึงข้อมูลลูกค้าจาก Database มาใช้เพื่อความชัวร์ (อ้างอิงจากตารางในภาพ)
+          setCustomerInfo({
+            name: currentTakeaway.customer_name,
+            phone: currentTakeaway.customer_phone
+          });
+        }
+
+        // ดึงข้อมูลเมนู
         const resMenu = await fetch("/api/menu", { cache: "no-store" });
         if (!resMenu.ok) throw new Error("Failed to fetch menu");
         const menuData = await resMenu.json();
@@ -82,12 +108,13 @@ export default function OrderPage() {
     if (selectedTable || orderType === 'takeout') validateAndFetchData();
   }, [selectedTable, orderType, token]);
 
-  const getCartKey = () => selectedTable ? `cart_${selectedTable}` : (orderType === 'takeout' ? `cart_takeout` : null);
+  // ปรับ Cart Key ให้ผูกกับ Token เพื่อไม่ให้ตะกร้าของออเดอร์กลับบ้านชนกัน
+  const getCartKey = () => selectedTable ? `cart_${selectedTable}` : (orderType === 'takeout' && token ? `cart_takeout_${token}` : null);
 
   useEffect(() => {
     const key = getCartKey();
-    setCart(key ? JSON.parse(localStorage.getItem(key) || "[]") : []);
-  }, [selectedTable, orderType]);
+    if (key) setCart(JSON.parse(localStorage.getItem(key) || "[]"));
+  }, [selectedTable, orderType, token]);
 
   const updateCart = (newCart) => {
     setCart(newCart);
@@ -134,8 +161,10 @@ export default function OrderPage() {
   }, [menus, searchQuery, selectedCategory, categories]);
 
   const totalCartItems = cart.reduce((sum, item) => sum + item.qty, 0);
+
+  // ปรับการส่ง Parameter ไปหน้าตะกร้าให้รองรับ Token ด้วย
   const cartUrl = orderType === 'takeout'
-    ? `/cart?type=takeout&customerName=${encodeURIComponent(customerName || '')}&customerPhone=${encodeURIComponent(customerPhone || '')}`
+    ? `/cart?type=takeout&token=${token}&customerName=${encodeURIComponent(customerInfo.name || '')}&customerPhone=${encodeURIComponent(customerInfo.phone || '')}`
     : `/cart?table=${selectedTable}&token=${token}`;
 
   return (
@@ -148,7 +177,7 @@ export default function OrderPage() {
             <div>
               <h1 className="text-sm font-bold text-zinc-900 dark:text-zinc-100">สั่งอาหาร</h1>
               <p className="text-xs text-gray-500 dark:text-zinc-500">
-                {orderType === 'takeout' ? `สั่งกลับบ้าน: ${customerName || 'ลูกค้าทั่วไป'} ${customerPhone ? `(${customerPhone})` : ''}` : `โต๊ะ: ${selectedTable || "-"}`}
+                {orderType === 'takeout' ? `สั่งกลับบ้าน: ${customerInfo.name || 'ลูกค้าทั่วไป'} ${customerInfo.phone ? `(${customerInfo.phone})` : ''}` : `โต๊ะ: ${selectedTable || "-"}`}
               </p>
             </div>
           </div>
